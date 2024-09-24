@@ -63,8 +63,13 @@ tran_max<- transect_max(tf_2)
 tran_time_minmax <- transect_time_minmax(tf_2)
 
 #time series test #####
-tst<- ts_table(tf_2)
+tst<- ts_table(tf_2,use_flag = "no")
 
-#output data csv test ####
+#output data & max csv test ####
 output <- output_csv_data(tf_2,loc="off")
 
+output_max <- output_csv_max(tf_2,loc="off")
+
+#time series plot test####
+
+tspt <- ts_plot(output)
