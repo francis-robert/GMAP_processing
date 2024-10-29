@@ -26,8 +26,18 @@ rawdataprep <- function(path){
     MA_temp_3 <- MA_temp_2[,!duplicated(colnames(MA_temp_2))]
     MA_temp_4 <- MA_temp_3 %>%
       mutate(across(everything(),as.character)) %>%
+      mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` = gsub("\\..*","",`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`)) %>%
+      mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`=if_else(str_detect(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`,":")==FALSE,paste0("01/01/1700 00:00:00"),`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`)) %>%
+      mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` = as.POSIXct(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`, tryFormats = c("%m/%d/%Y %H:%M:%S")))
+    MA_temp_5 <- MA_temp_4 %>%
+      filter(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`<as.POSIXct("1900-01-01 00:00:00", format = "%Y-%m-%d %H:%M:%S"))%>%
+      mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` = `Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` + seconds(1+(row_number(.))))
+    MA_temp_6 <- MA_temp_4 %>%
+      filter(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`>as.POSIXct("1900-01-01 00:00:00", format = "%Y-%m-%d %H:%M:%S"))
+    MA_temp_7<- MA_temp_6 %>%
+      bind_rows(.,MA_temp_5) %>%
       pivot_longer(.,cols = 2:ncol(.))
-    out_df_MA[[data_MA[[i]]]]<- MA_temp_4
+    out_df_MA[[data_MA[[i]]]]<- MA_temp_7
   }
     print("Mapping Transect Present")
     }
@@ -55,8 +65,18 @@ rawdataprep <- function(path){
     ST_temp_3 <- ST_temp_2[,!duplicated(colnames(ST_temp_2))]
     ST_temp_4 <- ST_temp_3 %>%
       mutate(across(everything(),as.character)) %>%
+      mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` = gsub("\\..*","",`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`)) %>%
+      mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`=if_else(str_detect(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`,":")==FALSE,paste0("01/01/1700 00:00:00"),`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`)) %>%
+      mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` = as.POSIXct(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`, tryFormats = c("%m/%d/%Y %H:%M:%S")))
+    ST_temp_5 <- ST_temp_4 %>%
+      filter(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`<as.POSIXct("1900-01-01 00:00:00", format = "%Y-%m-%d %H:%M:%S"))%>%
+      mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` = `Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` + seconds(1+(row_number(.))))
+    ST_temp_6 <- ST_temp_4 %>%
+      filter(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`>as.POSIXct("1900-01-01 00:00:00", format = "%Y-%m-%d %H:%M:%S"))
+    ST_temp_7<- ST_temp_6 %>%
+      bind_rows(.,ST_temp_5) %>%
       pivot_longer(.,cols = 2:ncol(.))
-    out_df_ST[[data_ST[[i]]]]<- ST_temp_4
+    out_df_ST[[data_ST[[i]]]]<- ST_temp_7
   }
     print("Stationary Transects Present")
   }

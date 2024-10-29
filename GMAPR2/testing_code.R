@@ -47,6 +47,9 @@ tst<- ts_table(tf_2,rm_flagged = "no")
 #output data & max csv test ####
 output <- output_csv_data(tf_2,loc="off")
 
+tf_2 |>
+  dplyr::summarise(n = dplyr::n(), .by = c(TimeStamp, header)) |>
+  dplyr::filter(n > 1L)
 #time series plot test####
 
 tspt <- ts_plot(tf_2, grp = c(1,2), analyte = c("H2S","CH4"),units = "TESTUNITS")

@@ -9,6 +9,7 @@ library(jpeg)
 library(grid)
 library(cowplot)
 library(geosphere)
+library(lubridate)
 
 load_all()
 library(GMAPR2)
