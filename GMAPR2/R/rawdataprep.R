@@ -10,6 +10,7 @@ rawdataprep <- function(path){
     MA_temp <- read.table(data_MA[[i]],skip=19, sep = "\t",
                           fill = TRUE, na.strings = "NaN")
     header_MA_temp <- read.table(data_MA[[i]],sep = "\t", skip = 14, nrows = 5,fill=T,header = F) %>%
+      replace(is.na(.),"NA") %>%
       mutate(across(everything(),~str_replace(.,"_","-"))) %>%
       mutate(across(everything(),~str_replace(.," ","-"))) %>%
       mutate(across(everything(),~sub("^$","BLANK",.))) %>%
@@ -18,20 +19,22 @@ rawdataprep <- function(path){
       group_by(name) %>%
       summarise(value = str_c(value, collapse="_")) %>%
       pivot_wider(.)
-    header_MA_temp_2 <-make.unique(as.character(header_MA_temp[1,]), sep = "@")
-    colnames(MA_temp) <- header_MA_temp_2
-    MA_temp_2 <- MA_temp %>%
-      select(where(function(x) !all(is.na(x))))
-    names(MA_temp_2) <- gsub("\\@.*", "", names(MA_temp_2))
-    MA_temp_3 <- MA_temp_2[,!duplicated(colnames(MA_temp_2))]
+    # header_MA_temp_2 <-make.unique(as.character(header_MA_temp[1,]), sep = "@")
+    colnames(MA_temp) <- header_MA_temp
+    # MA_temp_2 <- MA_temp %>%
+    #   select(where(function(x) !all(is.na(x))))
+    # MA_temp_2 <- MA_temp
+    # names(MA_temp_2) <- gsub("\\@.*", "", names(MA_temp_2))
+    MA_temp_3 <- MA_temp[,!duplicated(colnames(MA_temp))]
     MA_temp_4 <- MA_temp_3 %>%
       mutate(across(everything(),as.character)) %>%
       mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` = gsub("\\..*","",`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`)) %>%
       mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`=if_else(str_detect(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`,":")==FALSE,paste0("01/01/1700 00:00:00"),`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`)) %>%
       mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` = as.POSIXct(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`, tryFormats = c("%m/%d/%Y %H:%M:%S")))
     MA_temp_5 <- MA_temp_4 %>%
+      # arrange(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`)%>%
       filter(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`<as.POSIXct("1900-01-01 00:00:00", format = "%Y-%m-%d %H:%M:%S"))%>%
-      mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` = `Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` + seconds(1+(row_number(.))))
+      mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` = `Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` + days(1+(row_number())))
     MA_temp_6 <- MA_temp_4 %>%
       filter(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`>as.POSIXct("1900-01-01 00:00:00", format = "%Y-%m-%d %H:%M:%S"))
     MA_temp_7<- MA_temp_6 %>%
@@ -49,6 +52,7 @@ rawdataprep <- function(path){
     ST_temp <- read.table(data_ST[[i]],skip=31, sep = "\t",
                           fill = TRUE, na.strings = "NaN")
     header_ST_temp <- read.table(data_ST[[i]],sep = "\t", skip = 26, nrows = 5,fill=T,header = F) %>%
+      replace(is.na(.),"NA") %>%
       mutate(across(everything(),~str_replace(.,"_","-"))) %>%
       mutate(across(everything(),~str_replace(.," ","-"))) %>%
       mutate(across(everything(),~sub("^$","BLANK",.))) %>%
@@ -57,20 +61,22 @@ rawdataprep <- function(path){
       group_by(name) %>%
       summarise(value = str_c(value, collapse="_")) %>%
       pivot_wider(.)
-    header_ST_temp_2 <-make.unique(as.character(header_ST_temp[1,]), sep = "@")
-    colnames(ST_temp) <- header_ST_temp_2
-    ST_temp_2 <- ST_temp %>%
-      select(where(function(x) !all(is.na(x))))
-    names(ST_temp_2) <- gsub("\\@.*", "", names(ST_temp_2))
-    ST_temp_3 <- ST_temp_2[,!duplicated(colnames(ST_temp_2))]
+    # header_ST_temp_2 <-make.unique(as.character(header_ST_temp[1,]), sep = "@")
+    colnames(ST_temp) <- header_ST_temp
+    # ST_temp_2 <- ST_temp %>%
+    #   select(where(function(x) !all(is.na(x))))
+    # ST_temp_2 <- ST_temp
+    # names(ST_temp_2) <- gsub("\\@.*", "", names(ST_temp_2))
+    ST_temp_3 <- ST_temp[,!duplicated(colnames(ST_temp))]
     ST_temp_4 <- ST_temp_3 %>%
       mutate(across(everything(),as.character)) %>%
       mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` = gsub("\\..*","",`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`)) %>%
       mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`=if_else(str_detect(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`,":")==FALSE,paste0("01/01/1700 00:00:00"),`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`)) %>%
       mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` = as.POSIXct(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`, tryFormats = c("%m/%d/%Y %H:%M:%S")))
     ST_temp_5 <- ST_temp_4 %>%
-      filter(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`<as.POSIXct("1900-01-01 00:00:00", format = "%Y-%m-%d %H:%M:%S"))%>%
-      mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` = `Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` + seconds(1+(row_number(.))))
+      # arrange(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`)%>%
+      filter(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` < as.POSIXct("1900-01-01 00:00:00", format = "%Y-%m-%d %H:%M:%S")) %>%
+      mutate(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` = `Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp` + days(1+(row_number())))
     ST_temp_6 <- ST_temp_4 %>%
       filter(`Type:_InstrumentID_ResidenceTime-(s)_Units_TimeStamp`>as.POSIXct("1900-01-01 00:00:00", format = "%Y-%m-%d %H:%M:%S"))
     ST_temp_7<- ST_temp_6 %>%
