@@ -1,8 +1,6 @@
-qual_sum <- function(x,y) {
-  mdl_sql <- read.csv(y) %>%
-    mutate(analyte = paste0("ANALYTE_",analyte))
+qual_sum <- function(x,analyte = " ") {
+  analytes <- as.vector(analyte)
   data <- x %>%
-    left_join(.,mdl_sql,by = c("header" = "analyte")) %>%
     mutate(gtr_sql = if_else(value > SQL,1,0)) %>%
     mutate(gtr_il = if_else(value > IL,1,0)) %>%
     mutate(flagged = if_else(!mdl_qa_flag == "NA"|!time_flag == "NA",1,0)) %>%
@@ -14,6 +12,7 @@ qual_sum <- function(x,y) {
     mutate(gtr_il_perc = (gtr_il/sum_tran)*100) %>%
     mutate(flagged_perc = (flagged/sum_tran)*100) %>%
     mutate(header = gsub("ANALYTE_","",header)) %>%
-    rename("analyte" = "header")
+    rename("analyte" = "header") %>%
+    filter(analyte %in% analytes)
 }
 
