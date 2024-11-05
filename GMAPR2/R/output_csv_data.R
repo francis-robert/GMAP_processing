@@ -26,7 +26,8 @@ output_csv_data <- function (x, loc= c("on", "off")){
   output_fin <- output_inter_2 %>%
     left_join(.,output_inter,by="TimeStamp") %>%
     left_join(.,output_flag_data,by="TimeStamp") %>%
-    filter(.,str_detect(instrument, c("Picarro|Syft")))
+    filter(.,str_detect(instrument, c("Picarro|Syft"))) %>%
+    distinct(.)
   write.csv(output_fin,paste0(unique(output_fin$campaign),"_",unique(output_fin$loc_samp),".csv"))
   return(output_inter)
 }
