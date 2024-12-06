@@ -1,5 +1,5 @@
 pic_flagging <- function(x, y, h2shs=NULL,ch4hs=NULL){
-  mdl <- read.csv(y, header = T) %>%
+  mdl <- y %>%
     mutate(analyte = paste0("ANALYTE_",analyte))
   
   data <- x %>%
