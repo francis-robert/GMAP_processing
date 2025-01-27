@@ -47,13 +47,63 @@ tst<- ts_table(tf_2,rm_flagged = "no")
 #output data & max csv test ####
 output <- output_csv_data(tf_2,loc="off")
 
+out_distinct<-output %>%
+  distinct(.)
+
+
+
 tf_2 |>
   dplyr::summarise(n = dplyr::n(), .by = c(TimeStamp, header)) |>
   dplyr::filter(n > 1L)
 #time series plot test####
 
-tspt <- ts_plot(tf_2, grp = c(1,2), analyte = c("H2S","CH4"),units = "TESTUNITS")
+######
+input <- tf_2 %>%
+  filter(str_detect(header,"ANALYTE_")) %>%
+  mutate(header = gsub("ANALYTE_","",header)) %>%
+  filter(!header == "ws" & !header == "wd")
 
+input_ws_wd_lat_long <- tf_2 %>%
+  filter(str_detect(header,"ANALYTE_")) %>%
+  mutate(header = gsub("ANALYTE_","",header)) %>%
+  filter(header=="ws"|header=="wd"|header=="GPS-Latitude"|header=="GPS-Longitude") %>%
+  pivot_wider(.,id_cols = c(TimeStamp,id),names_from = header)
+
+time_test<-input_ws_wd_lat_long %>%
+  group_by(id) %>%
+  mutate(time_interval=floor_date(TimeStamp,unit="hour")+minutes(floor(minute(TimeStamp)/5)*5))
+
+mean_wd<- time_test %>%
+  group_by(time_interval) %>%
+  mutate(ones=1) %>%
+  mutate(ns=(1/sum(ones)) * sum(sin(wd))) %>%
+  mutate(ew=(1/sum(ones)) * sum(cos(wd))) %>%
+  mutate(avg_wd=90-atan(ns/ew)) %>%
+  distinct(id,.keep_all = T) %>%
+  mutate(wd_rad=((avg_wd*-1)+90+180))
+
+mean_wd_test<-mean_wd %>%
+  filter(id=="MA01")
+wd_plot<-ggplot(mean_wd_test,aes(x=TimeStamp,y=ws))+
+  geom_text(aes(angle=wd_rad),label="→",size=7)+
+  theme(axis.title.x = element_blank(),axis.ticks.x = element_blank(),axis.text.x = element_blank(),legend.position = "none")
+
+analyte_plot<- input %>%
+  filter(id=="MA01", header=="H2S")
+
+y<-ggplot(analyte_plot, aes(x=TimeStamp,y=value,color=header))+
+  geom_point()+
+  scale_color_manual(values=c("blue3","darkorange","chartreuse3","firebrick2","blueviolet","orange4","violetred","honeydew4","gold2","turquoise2"),
+                     drop=FALSE)+
+  geom_hline(aes(yintercept=unique(mdl),linetype="MDL"))+
+  geom_hline(aes(yintercept=unique(SQL),linetype="SQL"))+
+  scale_linetype_manual("Critical Values",values=c("MDL"="dashed","SQL"="dotted"))
+
+ggarrange(wd_plot,y, nrow = 2,ncol = 1, common.legend = T,legend = "bottom",align = "hv")
+
+#####
+
+tspt <- ts_plot(tf_2, grp = c(1,2), analyte = c("H2S","CH4"),units = "TESTUNITS")
 wind_legend<-readJPEG("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/gmap_package/Picture1.jpg")
 
 wind_legend_grob<-rasterGrob(wind_legend,interpolate = T)

@@ -1,11 +1,11 @@
 output_csv_data <- function (x, loc= c("on", "off")){
   output_flag_data <- x %>%
     ungroup() %>%
-    unite("flag",c(mdl_qa_flag, time_flag), sep = ",", remove = FALSE) %>%
+    unite("flag",c(mdl_flag, time_flag), sep = ",", remove = FALSE) %>%
     mutate(flag = gsub("NA,","",flag)) %>%
     mutate(flag = gsub("NA","",flag)) %>%
     mutate(flag = gsub(", NA","",flag)) %>%
-    filter(.,str_detect(instrument, c("Picarro|Syft"))) %>%
+    filter(.,str_detect(instrument, c("Picarro|Syft"))|str_detect(header, c("ws|wd|GPS-Longitude|GPS-Latitude"))) %>%
     group_by(instrument) %>%
     mutate(header = paste0(header, "_flag")) %>%
     mutate(value = flag) %>%
@@ -22,12 +22,11 @@ output_csv_data <- function (x, loc= c("on", "off")){
     ungroup() %>%
     filter(!instrument == "AliCat-FP-25" & !header== "GPS-Time") %>%
     filter(loc_samp == loc) %>%
-    select(-header, -value,-mdl_qa_flag,-time_flag)
+    select(-header, -value,-mdl_flag,-time_flag)
   output_fin <- output_inter_2 %>%
     left_join(.,output_inter,by="TimeStamp") %>%
     left_join(.,output_flag_data,by="TimeStamp") %>%
-    filter(.,str_detect(instrument, c("Picarro|Syft"))) %>%
-    distinct(.)
+    filter(.,str_detect(instrument, c("Picarro|Syft")))
   write.csv(output_fin,paste0(unique(output_fin$campaign),"_",unique(output_fin$loc_samp),".csv"))
-  return(output_inter)
-}
+  return(output_fin)
+  }

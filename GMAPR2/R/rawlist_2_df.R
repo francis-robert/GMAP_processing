@@ -1,5 +1,5 @@
 rawlist_2_df <- function(x, transect = c("MA","ST"),campaign = " ", loc = c("on", "off")){
-  output <- x[[transect]] %>%
+  output <- test[[transect]] %>%
     bind_rows( ,.id = "id") %>%
     mutate(id = gsub(paste0(".*","_",transect,sep=""),transect,id)) %>%
     mutate(id = gsub("\\..*","",id)) %>%

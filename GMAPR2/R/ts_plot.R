@@ -6,7 +6,7 @@ ts_plot <- function(x,grp = c(), analyte = c(" "), units = ""){
   input_ws_wd_lat_long <- x %>%
     filter(str_detect(header,"ANALYTE_")) %>%
     mutate(header = gsub("ANALYTE_","",header)) %>%
-    filter(header=="ws"|header=="wd"|header=="GPS-Latitude"|header=="GPS=Longitude") %>%
+    filter(header=="ws"|header=="wd"|header=="GPS-Latitude"|header=="GPS-Longitude") %>%
     pivot_wider(.,id_cols = TimeStamp,names_from = header)
   header <- analyte
   groupings <- tibble(grp, header)
