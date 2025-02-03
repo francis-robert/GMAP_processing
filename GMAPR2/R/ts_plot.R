@@ -1,4 +1,4 @@
-ts_plot <- function(x,grp = c(), analyte = c(" "), units = ""){
+ts_plot <- function(x,grp = c(), analyte = c(" "), units = "", wd_avg_time_min= NULL){
   input <- x %>%
     filter(str_detect(header,"ANALYTE_")) %>%
     mutate(header = gsub("ANALYTE_","",header)) %>%
@@ -46,6 +46,19 @@ ts_plot <- function(x,grp = c(), analyte = c(" "), units = ""){
       geom_hline(aes(yintercept=unique(SQL),linetype="SQL"))+
       scale_linetype_manual("Critical Values",values=c("MDL"="dashed","SQL"="dotted"))+
       theme(axis.text.x = element_text(angle = 90),axis.ticks.x = element_blank())
+
+    time_test<-input_ws_wd_lat_long %>%
+      group_by(id) %>%
+      mutate(time_interval=floor_date(TimeStamp,unit="hour")+minutes(floor(minute(TimeStamp)/5)*5))
+
+    mean_wd<- time_test %>%
+      group_by(time_interval) %>%
+      mutate(ones=1) %>%
+      mutate(ns=(1/sum(ones)) * sum(sin(wd))) %>%
+      mutate(ew=(1/sum(ones)) * sum(cos(wd))) %>%
+      mutate(avg_wd=90-atan(ns/ew)) %>%
+      distinct(id,.keep_all = T) %>%
+      mutate(wd_rad=((avg_wd*-1)+90+180))
     wd_plot_prep <- input_3 %>%
       filter(TimeStamp %in% plot_in_tran$TimeStamp) %>%
       mutate(wd_rad=((wd*-1)+90+180))%>%

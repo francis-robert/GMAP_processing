@@ -1,11 +1,25 @@
 
 mdl<-read.csv("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/2024_mdl_list.csv")
 #rawdataprep_test#####
-test<-rawdataprep("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/Livingston Landfill")
+test<-rawdataprep("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/GMAP2 Data test")
+
+
+MA_temp <- read.table("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/GMAP2 Data test/Mapping/250203/250203_MA01.txt",skip=20, sep = "\t",
+                      fill = TRUE, na.strings = "NaN")
+header_MA_temp <- read.table("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/GMAP2 Data test/Mapping/250203/250203_MA01.txt",sep = "\t", skip = 15, nrows = 5,fill=T,header = F) %>%
+  replace(is.na(.),"NA") %>%
+  mutate(across(everything(),~str_replace_all(.,"_","-")))
+  mutate(across(everything(),~str_replace_all(.," ","-")))
+  mutate(across(everything(),~sub("^$","BLANK",.))) %>%
+  pivot_longer(.,cols = 1:ncol(.)) %>%
+  mutate(name = as.numeric(gsub("V", "", name))) %>%
+  group_by(name) %>%
+  summarise(value = str_c(value, collapse="_")) %>%
+  pivot_wider(.)
 
 #rawlist_2_df test####
-df_test <- rawlist_2_df(test,"MA",campaign = "LivingstonLandfill",loc="off")
-df_test_st <-rawlist_2_df(test,"ST",campaign = "LivingstonLandfill",loc="off")
+df_test <- rawlist_2_df(test,"MA",campaign = "GMAPTEST",loc="off")
+df_test_st <-rawlist_2_df(test,"ST",campaign = "GMAPTEST",loc="off")
 
 #MA_ST_bind test ####
 comb<-MA_ST_bind(df_test,df_test_st)
@@ -58,16 +72,29 @@ tf_2 |>
 #time series plot test####
 
 ######
+analyte
+
 input <- tf_2 %>%
   filter(str_detect(header,"ANALYTE_")) %>%
   mutate(header = gsub("ANALYTE_","",header)) %>%
   filter(!header == "ws" & !header == "wd")
-
 input_ws_wd_lat_long <- tf_2 %>%
   filter(str_detect(header,"ANALYTE_")) %>%
   mutate(header = gsub("ANALYTE_","",header)) %>%
   filter(header=="ws"|header=="wd"|header=="GPS-Latitude"|header=="GPS-Longitude") %>%
-  pivot_wider(.,id_cols = c(TimeStamp,id),names_from = header)
+  pivot_wider(.,id_cols = TimeStamp,names_from = header)
+header <- analyte
+groupings <- tibble(grp, header)
+print(groupings)
+groupings_1<-groupings %>%
+  mutate(header=strsplit(header,","))%>%
+  unnest(header)
+input_2<-input %>%
+  left_join(.,groupings_1,by="header") %>%
+  left_join(.,input_ws_wd_lat_long,by="TimeStamp")
+# filter(header==groupings_1$header)
+input_3 <-input_2 %>%
+  filter(!is.na(grp))
 
 time_test<-input_ws_wd_lat_long %>%
   group_by(id) %>%
