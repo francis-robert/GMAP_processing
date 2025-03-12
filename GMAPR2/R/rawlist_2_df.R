@@ -21,5 +21,5 @@ rawlist_2_df <- function(x, transect = c("MA","ST"),campaign = " ", loc = c("on"
     separate(TimeStamp, c("Date", "Time"), sep=" ", remove = FALSE)
 
   return(out_fin)
-  }
+}
 

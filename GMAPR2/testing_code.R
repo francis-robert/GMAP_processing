@@ -8,8 +8,8 @@ MA_temp <- read.table("C:/Users/rfranc01/OneDrive - Environmental Protection Age
                       fill = TRUE, na.strings = "NaN")
 header_MA_temp <- read.table("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/GMAP2 Data test/Mapping/250203/250203_MA01.txt",sep = "\t", skip = 15, nrows = 5,fill=T,header = F) %>%
   replace(is.na(.),"NA") %>%
-  mutate(across(everything(),~str_replace_all(.,"_","-")))
-  mutate(across(everything(),~str_replace_all(.," ","-")))
+  mutate(across(everything(),~str_replace_all(.,"_","-"))) %>%
+  mutate(across(everything(),~str_replace_all(.," ","-"))) %>%
   mutate(across(everything(),~sub("^$","BLANK",.))) %>%
   pivot_longer(.,cols = 1:ncol(.)) %>%
   mutate(name = as.numeric(gsub("V", "", name))) %>%
@@ -42,14 +42,12 @@ tran_time_minmax <- transect_time_minmax(comb)
 #   mutate(time_flag="NA")
 
 
-tf<-time_flagging(test_pic_flag, timestart = "09/11/2024 08:55:00", timestop = "09/11/2024 09:10:00", timeqt = "TESTTESTTEST",
-              analyte = c("H2S","ws"))
+tf<-time_flagging(test_pic_flag, timestart = "02/03/2025 11:18:00", timestop = "02/03/2025 11:18:11", timeqt = "TESTTESTTEST",
+              analyte = c("H2S","acrolein","ccl4"))
 
-tf_2<-time_flagging(tf,timestart = "09/11/2023 08:57:00", timestop = "09/11/2025 09:20:00", timeqt = "WHOOPER",
-                    analyte = c("H2S","CH4","ws","wd"))
+tf_2<-time_flagging(tf,timestart = "02/03/2025 11:21:30", timestop = "02/03/2025 11:24:00", timeqt = "WHOOPER",
+                    analyte = c("H2S","CH4","acetone"))
 
-x<-tf_2 %>%
-  filter(header=="ANALYTE_ws")
 #transect_max test, trans time min max test####
 
 tran_max<- transect_max(tf_2)
@@ -66,39 +64,43 @@ out_distinct<-output %>%
 
 
 
-tf_2 |>
-  dplyr::summarise(n = dplyr::n(), .by = c(TimeStamp, header)) |>
-  dplyr::filter(n > 1L)
+# tf_2 |>
+#   dplyr::summarise(n = dplyr::n(), .by = c(TimeStamp, header)) |>
+#   dplyr::filter(n > 1L)
 #time series plot test####
 
 ######
-analyte
+analyte = c("H2S,benzene,xyleth","acetone,thf")
+grp = c(1,2)
 
 input <- tf_2 %>%
   filter(str_detect(header,"ANALYTE_")) %>%
   mutate(header = gsub("ANALYTE_","",header)) %>%
-  filter(!header == "ws" & !header == "wd")
+  filter(!header == "ws" & !header == "wd") %>%
+  left_join(.,groupings_1,by="header") %>%
+  drop_na(grp)
 input_ws_wd_lat_long <- tf_2 %>%
+  select(TimeStamp,id,header,value) %>%
   filter(str_detect(header,"ANALYTE_")) %>%
   mutate(header = gsub("ANALYTE_","",header)) %>%
   filter(header=="ws"|header=="wd"|header=="GPS-Latitude"|header=="GPS-Longitude") %>%
-  pivot_wider(.,id_cols = TimeStamp,names_from = header)
+  pivot_wider(.,id_cols = c(TimeStamp,id),names_from = header)
 header <- analyte
 groupings <- tibble(grp, header)
 print(groupings)
 groupings_1<-groupings %>%
   mutate(header=strsplit(header,","))%>%
   unnest(header)
-input_2<-input %>%
-  left_join(.,groupings_1,by="header") %>%
-  left_join(.,input_ws_wd_lat_long,by="TimeStamp")
-# filter(header==groupings_1$header)
-input_3 <-input_2 %>%
-  filter(!is.na(grp))
+# input_2<-input %>%
+#   left_join(.,groupings_1,by="header") %>%
+#   left_join(.,input_ws_wd_lat_long,by="TimeStamp")
+# # filter(header==groupings_1$header)
+# input_3 <-input_2 %>%
+#   filter(!is.na(grp))
 
 time_test<-input_ws_wd_lat_long %>%
   group_by(id) %>%
-  mutate(time_interval=floor_date(TimeStamp,unit="hour")+minutes(floor(minute(TimeStamp)/5)*5))
+  mutate(time_interval=floor_date(TimeStamp,unit="hour")+minutes(floor(minute(TimeStamp)/1)*1))
 
 mean_wd<- time_test %>%
   group_by(time_interval) %>%
@@ -111,22 +113,92 @@ mean_wd<- time_test %>%
 
 mean_wd_test<-mean_wd %>%
   filter(id=="MA01")
-wd_plot<-ggplot(mean_wd_test,aes(x=TimeStamp,y=ws))+
-  geom_text(aes(angle=wd_rad),label="→",size=7)+
-  theme(axis.title.x = element_blank(),axis.ticks.x = element_blank(),axis.text.x = element_blank(),legend.position = "none")
+
+input_multi <- input %>%
+  unite("id_grp",c(id,grp)) %>%
+  left_join(.,mean_wd,by="TimeStamp") %>%
+  group_by(id_grp) %>%
+  drop_na(wd_rad)
+
+input_multi_list <- input_multi %>%
+  group_split(.,.keep = T)
+wd_plot<-ggplot(input_multi_list[[1]],aes(x=Time,y=ws))+
+  geom_text(aes(angle=wd_rad),label="→",size=7)
+  # theme(axis.title.x = element_blank(),axis.ticks.x = element_blank(),axis.text.x = element_blank(),legend.position = "none")
 
 analyte_plot<- input %>%
-  filter(id=="MA01", header=="H2S")
+  left_join(.,groupings_1,by="header") %>%
+  filter(id=="MA01", grp==1)
 
 y<-ggplot(analyte_plot, aes(x=TimeStamp,y=value,color=header))+
   geom_point()+
+  geom_line()+
   scale_color_manual(values=c("blue3","darkorange","chartreuse3","firebrick2","blueviolet","orange4","violetred","honeydew4","gold2","turquoise2"),
                      drop=FALSE)+
   geom_hline(aes(yintercept=unique(mdl),linetype="MDL"))+
   geom_hline(aes(yintercept=unique(SQL),linetype="SQL"))+
   scale_linetype_manual("Critical Values",values=c("MDL"="dashed","SQL"="dotted"))
 
-ggarrange(wd_plot,y, nrow = 2,ncol = 1, common.legend = T,legend = "bottom",align = "hv")
+ggarrange(wd_plot,y, nrow = 2,ncol = 1, heights = c(1,3), common.legend = T,legend = "bottom",align = "hv")
+
+
+ts_test<-ts_plot(tf_2, grp = c("A","B"), analyte = c("H2S,dbe,pce","benzene,thf"),multi_analyte = TRUE, time_labels="15 sec")
+
+ts_test_2<-ts_plot(tf_2, grp = c("A"), analyte = c("H2S"),multi_analyte = FALSE, time_labels="15 sec")
+#####dashboard prep (forcing it maybe not the final function )
+
+latlong_dash <-tf_2 %>%
+  filter(header=="ANALYTE_GPS-Latitude" | header=="ANALYTE_GPS-Longitude") %>%
+  mutate(header = gsub(".*ANALYTE_GPS-","",header)) %>%
+  pivot_wider(.,id_cols=TimeStamp,names_from = header)
+
+wdws_dash <-tf_2 %>%
+  filter(header=="ANALYTE_ws" | header=="ANALYTE_wd") %>%
+  mutate(header = gsub(".*ANALYTE_","",header)) %>%
+  pivot_wider(.,id_cols=TimeStamp,names_from = header)
+
+
+dash_ex<-tf_2 %>%
+  unite("flag",c(mdl_flag,time_flag),sep = ",")%>%
+  mutate(flag = gsub(".*NA,","",flag)) %>%
+  mutate(flag = gsub("\\,NA","",flag)) %>%
+  mutate(syft_method = case_when(type=="SyftGas"~"TO15",
+                                 .default = "NA")) %>%
+  mutate(samp_interval = NA) %>%
+  mutate(particle_size = NA) %>%
+  filter(!header=="ANALYTE_GPS-Latitude" | !header=="ANALYTE_GPS-Longitude") %>%
+  left_join(.,latlong_dash,by="TimeStamp") %>%
+  mutate(crs = "EPSG:4326") %>%
+  mutate(epa_region = 5) %>%
+  mutate(ma_st = substr(id,start=1,stop=2)) %>%
+  mutate(met_bool= 1) %>%
+  filter(!header=="ANALYTE_ws" | !header=="ANALYTE_wd") %>%
+  left_join(.,wdws_dash,by="TimeStamp") %>%
+  mutate(naics="NA") %>%
+  mutate(naics_industry="NA") %>%
+  mutate(tags="NA") %>%
+  mutate(operators = "Haile.Kate") %>%
+  mutate(validated_bool=0) %>%
+  mutate(report_bool=0) %>%
+  mutate(links="NA") %>%
+  mutate(QAPP="NA") %>%
+  mutate(requestor="NA") %>%
+  mutate(Can_trigger_ppb = NA) %>%
+  mutate(Can_trigger_wd = NA) %>%
+  mutate(GMAP_bool=1) %>%
+  mutate(header = gsub(".*ANALYTE_","",header)) %>%
+  rename("transect" = "id","date"="Date","time_local"="Time",
+         "analyte"="header","CasNo"="cas","value_units"="units",
+         "lat"="Latitude","long"="Longitude","on_off"="loc_samp")
+dash_ex_2 <- dash_ex%>%
+select(TimeStamp,date,time_local,analyte,CasNo,value,value_units,flag,
+       syft_method,samp_interval,particle_size,lat,long,crs,epa_region,
+       ma_st,on_off,instrument, met_bool,wd,ws,campaign,naics,naics_industry,
+       tags,operators,transect,validated_bool,report_bool,links,QAPP,
+       requestor,Can_trigger_ppb,Can_trigger_wd,GMAP_bool)
+
+write.csv(dash_ex_2,"GMAP_VAN_examp.csv")
+
 
 #####
 
