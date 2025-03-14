@@ -145,7 +145,9 @@ ggarrange(wd_plot,y, nrow = 2,ncol = 1, heights = c(1,3), common.legend = T,lege
 ts_test<-ts_plot(tf_2, grp = c("A","B"), analyte = c("H2S,dbe,pce","benzene,thf"),multi_analyte = TRUE, time_labels="15 sec")
 
 ts_test_2<-ts_plot(tf_2, grp = c("A"), analyte = c("H2S"),multi_analyte = FALSE, time_labels="15 sec")
-#####dashboard prep (forcing it maybe not the final function )
+
+
+#####dashboard prep (forcing it maybe not the final function )####
 
 latlong_dash <-tf_2 %>%
   filter(header=="ANALYTE_GPS-Latitude" | header=="ANALYTE_GPS-Longitude") %>%
@@ -200,7 +202,95 @@ select(TimeStamp,date,time_local,analyte,CasNo,value,value_units,flag,
 write.csv(dash_ex_2,"GMAP_VAN_examp.csv")
 
 
-#####
+#setting up the mapping functions####
+
+#the calls for sf_data_noloc and sf_data_loc are required but for the current sample
+#data (as of 3/13/2025) which is a combination of sample data and kluzcky brothers data
+#(ananlyte info from specific samples but geospatial data from kluzcky brothers) the process can
+#skip right to the sf_data call
+sf_data_noloc <- tf_2 %>%
+  filter(str_detect(header,"ANALYTE_")) %>%
+  mutate(header = gsub("ANALYTE_","",header)) %>%
+  filter(!header == "GPS-Latitude" | !header == "GPS-Longitude")
+
+sf_data_loc <- tf_2 %>%
+  filter(str_detect(header,"ANALYTE_")) %>%
+  mutate(header = gsub("ANALYTE_","",header)) %>%
+  filter(header == "GPS-Latitude" | header == "GPS-Longitude") %>%
+  pivot_wider(.,id_cols = c(TimeStamp,id),names_from = header)
+
+sf_data <- sf_data_noloc %>%
+  left_join(.,sf_data_loc, by=c("TimeStamp","id")) %>%
+  st_as_sf(.,coords = c("GPS-Longitude","GPS-Latitude"),crs=4326)%>%
+  filter(header=="H2S" & id=="MA02")
+  st_cast("LINESTRING")
+
+  kluz_sf <- samp_kluz_fin %>%
+    st_as_sf(.,coords = c("GPS-Longitude","GPS-Latitude"),crs=4326)
+
+kluz_sf_tf <- kluz_sf %>%
+  st_transform(.,crs=st_crs(crs(naip_1)))
+
+#getting the raster image together
+naip_1<-rast("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/GMAP2 Data test/joliet_NAIPimagery/m_4108831_se_16_060_20190914.tif")
+naip_2<-rast("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/GMAP2 Data test/joliet_NAIPimagery/m_4108839_ne_16_060_20190914.tif")
+
+
+ext <- st_bbox(kluz_sf_tf)  #Setting extents (buffers) around monitoring data for imagery, 50 is arbitrary and can be changed as needed
+ext[1] <- ext[1] - 50
+ext[2] <- ext[2] - 50
+ext[3] <- ext[3] + 50
+ext[4] <- ext[4] + 50
+ext
+naip_mos <- mosaic(naip_1,naip_2)
+
+writeRaster()
+naip_mos_crop <- crop(naip_mos,ext)
+plotRGB(naip_mos_crop)
+
+naip_mos_crop_df<- as.data.frame (naip_mos_crop,xy=T) %>%
+  rename(Red = 3,
+         Green = 4,
+         Blue = 5)
+
+#subsetting to show which ananlytes a user would want to be displayed
+kluz_sf_tf_ma01 <- kluz_sf_tf %>%
+  filter(id=="MA02" & header=="H2S")
+
+ggplot(data=kluz_sf_tf)+
+  geom_raster(data = naip_mos_crop_df, aes(x = x, y = y),
+              fill = rgb(r = naip_mos_crop_df$Red,
+                         g = naip_mos_crop_df$Green,
+                         b = naip_mos_crop_df$Blue,
+                         maxColorValue = 255)) +
+  geom_sf(aes(color=value),size=4)
+  geom_spatraster(data = naip_mos_crop)
+
+ggplot()
+
+MA_map(x=kluz_sf,analyte = "CH4", extent="w",rast_path = "C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/gmap_package/GMAPR/GMAPR2/test_interim_raster_mosaic.tif",
+                  campaign = "test",multi_rast = NULL,color_vec = c("blue","green","salmon","pink","turquoise"))
+
+
+kluz_st_data <- samp_kluz_fin %>%
+  filter(!header=="ws"|!header=="wd")
+
+kluz_st_wswd <- samp_kluz_fin %>%
+  filter(header=="ws"|header=="wd") %>%
+  pivot_wider(.,id_cols = c(id,TimeStamp),names_from = header)
+
+kluz_st_only <- kluz_st_data %>%
+  left_join(.,kluz_st_wswd) %>%
+  filter(id=="ST02") %>%
+  filter(header=="H2S") %>%
+  ungroup()
+
+ggplot(data=kluz_st_only, aes(x=wd,y=value))+
+  geom_col()
+
+ST_map(kluz_st_only,rast_path = "C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/gmap_package/GMAPR/GMAPR2/test_interim_raster_mosaic.tif")
+
+#####,##sf_data###,,
 
 tspt <- ts_plot(tf_2, grp = c(1,2), analyte = c("H2S","CH4"),units = "TESTUNITS")
 wind_legend<-readJPEG("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/gmap_package/Picture1.jpg")
