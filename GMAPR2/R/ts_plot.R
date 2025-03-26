@@ -1,14 +1,16 @@
-ts_plot <- function(x,grp = c(), analyte = c(" "), unit = NULL, wd_time_interval=1,multi_analyte=TRUE, time_labels=" ") {
+ts_plot <- function(x,grp = c(), analyte = c(" "), unit = NULL,
+                    wd_time_interval=1,multi_analyte=TRUE, time_labels=" ") {
   header <- analyte
   groupings <- tibble(grp, header)
   print(groupings)
   groupings_1<-groupings %>%
     mutate(header=strsplit(header,","))%>%
     unnest(header)
+  print(groupings_1)
   if(is.null(unit)){
-    unit<-"\u00b5g/m\u00b3"
+    unit<-"(ppb)"
   }else{
-    unit<-unit
+    unit<-paste0("(",unit,")",sep="")
   }
   print(unit)
   input <- x %>%
@@ -26,31 +28,43 @@ ts_plot <- function(x,grp = c(), analyte = c(" "), unit = NULL, wd_time_interval
   time_test<-input_ws_wd_lat_long %>%
     group_by(id) %>%
     mutate(time_interval=floor_date(TimeStamp,unit="hour")+minutes(floor(minute(TimeStamp)/wd_time_interval)*wd_time_interval))
-  mean_wd<- time_test %>%
+
+  mean_wd <- time_test %>%
+    mutate(direction_section = case_when(wd>=0 & wd <=22.5 ~ 0,
+                                         wd>22.5 & wd <=67.5 ~ 45,
+                                         wd>67.5 & wd <=112.5 ~ 90,
+                                         wd>112.5 & wd <=157.5 ~ 135,
+                                         wd>157.5 & wd <=202.5 ~ 180,
+                                         wd>202.5 & wd <=247.5 ~ 225,
+                                         wd>247.5 & wd <=292.5 ~ 270,
+                                         wd>292.5 & wd <=337.5 ~ 315,
+                                         wd>337.5 & wd <=360 ~ 0,
+                                         .default = NA)) %>%
+    group_by(time_interval,direction_section) %>%
+    mutate(direc_count = n()) %>%
+    ungroup()%>%
     group_by(time_interval) %>%
-    mutate(ones=1) %>%
-    mutate(ns=(1/sum(ones)) * sum(sin(wd))) %>%
-    mutate(ew=(1/sum(ones)) * sum(cos(wd))) %>%
-    mutate(avg_wd=90-atan(ns/ew)) %>%
-    distinct(id,.keep_all = T) %>%
-    mutate(wd_rad=((avg_wd*-1)+90+180)) %>%
-    select(TimeStamp,ws,wd,time_interval,ns,ew,avg_wd,wd_rad)
+    slice_max(direc_count ,n=1) %>%
+    distinct(time_interval,direc_count,.keep_all = T)
+
   if (multi_analyte==TRUE){
     input_multi <- input %>%
       unite("id_grp",c(id,grp)) %>%
       left_join(.,mean_wd,by="TimeStamp") %>%
       group_by(id_grp)
     input_multi_wd_list<- input_multi %>%
-      drop_na(wd_rad) %>%
+      drop_na(direction_section) %>%
+      mutate(Time= as.POSIXct(Time, format = "%H:%M:%S")) %>%
       {setNames(group_split(.), group_keys(.)[[1]])}
 
     plot_out_wd<-input_multi_wd_list %>%
       lapply(.,function(x)
-        ggplot(x,aes(x=Time,y=ws))+
-          geom_text(aes(angle=wd_rad),label="→",size=7)+
-          ylab("WS (m/h)")+
+        ggplot(x,aes(x=Time,y=ws,angle=direction_section,radius=0.0001))+
+          geom_spoke(arrow = arrow(ends = "first",length = unit(.1, 'inches')),size=1)+
+          ylab("WS (m/s)")+
           theme(axis.title.x = element_blank(),axis.ticks.x = element_blank(),
-                axis.text.x = element_blank(),legend.position = "none"))
+                axis.text.x = element_blank(),legend.position = "none")+
+          expand_limits(y=c(max(x$ws)+1,min(x$ws)-1)))
 
     input_multi_analyte_list <- input_multi %>%
       mutate(Time= as.POSIXct(Time, format = "%H:%M:%S")) %>%
@@ -79,16 +93,19 @@ ts_plot <- function(x,grp = c(), analyte = c(" "), unit = NULL, wd_time_interval
     left_join(.,mean_wd,by="TimeStamp") %>%
     group_by(id_grp)
   input_multi_wd_list<- input_multi %>%
-    drop_na(wd_rad) %>%
+    drop_na(direction_section) %>%
+    mutate(Time= as.POSIXct(Time, format = "%H:%M:%S")) %>%
     {setNames(group_split(.), group_keys(.)[[1]])}
 
   plot_out_wd<-input_multi_wd_list %>%
     lapply(.,function(x)
-      ggplot(x,aes(x=Time,y=ws))+
-        geom_text(aes(angle=wd_rad),label="→",size=7)+
-        ylab("WS (m/h)")+
+      ggplot(x,aes(x=Time,y=ws,angle=direction_section,radius=0.0001))+
+        geom_spoke(arrow = arrow(ends = "first",length = unit(.1, 'inches')),size=1)+
+        ylab("WS (m/s)")+
         theme(axis.title.x = element_blank(),axis.ticks.x = element_blank(),
-              axis.text.x = element_blank(),legend.position = "none"))
+              axis.text.x = element_blank(),legend.position = "none")+
+        expand_limits(y=c(max(x$ws)+1,min(x$ws)-1)))
+
 
   input_multi_analyte_list <- input_multi %>%
     mutate(Time= as.POSIXct(Time, format = "%H:%M:%S")) %>%
