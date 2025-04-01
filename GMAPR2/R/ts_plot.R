@@ -1,5 +1,5 @@
 ts_plot <- function(x,grp = c(), analyte = c(" "), unit = NULL,
-                    wd_time_interval=1,multi_analyte=TRUE, time_labels=" ") {
+                    wd_time_interval=1,multi_analyte=TRUE, time_labels = "") {
   header <- analyte
   groupings <- tibble(grp, header)
   print(groupings)
