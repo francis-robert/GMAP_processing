@@ -1,5 +1,5 @@
 ST_map <- function(x,z, rast_path, analyte, transect, campaign = NULL,
-                   multi_rast = NULL,color_pal=o){
+                   multi_rast = NULL,color_pal=o,zoom_scale=550){
   #once I get a better data set the below commented out code will be used to process
   #the spatial data to get it ready for plotting
   data_nolocs <- x %>%
@@ -57,10 +57,10 @@ ST_map <- function(x,z, rast_path, analyte, transect, campaign = NULL,
   ext<- data_sf_clip %>%
     st_bbox(.)
 
-  ext[1] <- ext[1] - 550
-  ext[2] <- ext[2] - 550
-  ext[3] <- ext[3] + 550
-  ext[4] <- ext[4] + 550
+  ext[1] <- ext[1] - zoom_scale
+  ext[2] <- ext[2] - zoom_scale
+  ext[3] <- ext[3] + zoom_scale
+  ext[4] <- ext[4] + zoom_scale
 
   raster_rename <-crop(raster,ext) %>%
     as.data.frame (raster,xy=T) %>%
