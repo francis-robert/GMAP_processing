@@ -1,6 +1,6 @@
 MA_map <- function(x, rast_path, z, analyte, extent, transect=NULL, pt_size=10,
                    campaign = NULL, multi_rast = NULL,color_pal=switch(o),
-                   rast_red=3, rast_green=4, rast_blue=5,
+                   rast_red=3, rast_green=4, rast_blue=5,zoom_scale=550,
                    rast_type = c("naip","landsat")){
 #once I get a better data set the below commented out code will be used to process
 #the spatial data to get it ready for plotting
@@ -57,10 +57,10 @@ MA_map <- function(x, rast_path, z, analyte, extent, transect=NULL, pt_size=10,
         st_transform(.,crs=st_crs(crs(raster_crs)))
       ext<- data_sf_clip %>%
         st_bbox(.)
-        ext[1] <- ext[1] - 50
-        ext[2] <- ext[2] - 50
-        ext[3] <- ext[3] + 50
-        ext[4] <- ext[4] + 50
+        ext[1] <- ext[1] - zoom_scale
+        ext[2] <- ext[2] - zoom_scale
+        ext[3] <- ext[3] + zoom_scale
+        ext[4] <- ext[4] + zoom_scale
     }else{
       data_sf_clip<-data_sf %>%
         st_transform(.,crs=st_crs(crs(raster_crs))) %>%
@@ -68,10 +68,10 @@ MA_map <- function(x, rast_path, z, analyte, extent, transect=NULL, pt_size=10,
       ext<- data_sf_clip %>%
         st_bbox(.)
 
-        ext[1] <- ext[1] - 50
-        ext[2] <- ext[2] - 50
-        ext[3] <- ext[3] + 50
-        ext[4] <- ext[4] + 50
+        ext[1] <- ext[1] - zoom_scale
+        ext[2] <- ext[2] - zoom_scale
+        ext[3] <- ext[3] + zoom_scale
+        ext[4] <- ext[4] + zoom_scale
       }
   if(rast_type=="landsat"){
     # raster_landsat <-rast(red=raster[[grepl("B4",raster)]],# this is where things are getting screwy I'm gonnna have to tease it apart more(noted 3/25/25)
