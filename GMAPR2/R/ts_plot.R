@@ -1,5 +1,6 @@
 ts_plot <- function(x,grp = c(), analyte = c(" "), unit = NULL,
-                    wd_time_interval=1,multi_analyte=TRUE, time_labels = "") {
+                    wd_time_interval=1,multi_analyte=TRUE, time_labels = "",
+                    user_in_top=1,user_in_bottom=1) {
   header <- analyte
   groupings <- tibble(grp, header)
   print(groupings)
@@ -30,7 +31,7 @@ ts_plot <- function(x,grp = c(), analyte = c(" "), unit = NULL,
     mutate(time_interval=floor_date(TimeStamp,unit="hour")+minutes(floor(minute(TimeStamp)/wd_time_interval)*wd_time_interval))
 
   mean_wd <- time_test %>%
-    mutate(direction_section = case_when(wd>=0 & wd <=22.5 ~ 0,
+    mutate(direction_section = case_when(wd>=0 & wd <=22.5 ~ 360 ,
                                          wd>22.5 & wd <=67.5 ~ 45,
                                          wd>67.5 & wd <=112.5 ~ 90,
                                          wd>112.5 & wd <=157.5 ~ 135,
@@ -38,8 +39,17 @@ ts_plot <- function(x,grp = c(), analyte = c(" "), unit = NULL,
                                          wd>202.5 & wd <=247.5 ~ 225,
                                          wd>247.5 & wd <=292.5 ~ 270,
                                          wd>292.5 & wd <=337.5 ~ 315,
-                                         wd>337.5 & wd <=360 ~ 0,
+                                         wd>337.5 & wd <=360 ~ 360,
                                          .default = NA)) %>%
+    mutate(direction_char = case_when(direction_section == 360 ~ "N",
+                                      direction_section == 45 ~ "NE",
+                                      direction_section == 90 ~ "E",
+                                      direction_section == 135 ~ "SE",
+                                      direction_section == 180 ~ "S",
+                                      direction_section == 225 ~ "SW",
+                                      direction_section == 270 ~ "W",
+                                      direction_section == 315 ~ "NW",
+                                      .default = "NA")) %>%
     group_by(time_interval,direction_section) %>%
     mutate(direc_count = n()) %>%
     ungroup()%>%
@@ -59,12 +69,15 @@ ts_plot <- function(x,grp = c(), analyte = c(" "), unit = NULL,
 
     plot_out_wd<-input_multi_wd_list %>%
       lapply(.,function(x)
-        ggplot(x,aes(x=Time,y=ws,angle=direction_section,radius=0.0001))+
-          geom_spoke(arrow = arrow(ends = "first",length = unit(.1, 'inches')),size=1)+
+        ggplot(x,aes(x=Time,y=ws,radius=0.0001,angle=-direction_section+90))+
+          # geom_point()+
+          # geom_text(vjust=0,hjust=0)+
+          geom_text(label="→")+
+          # geom_spoke(aes(angle=direction_section),arrow = arrow(ends = "first",length = unit(.1, 'inches')),size=1)+
           ylab("WS (m/s)")+
           theme(axis.title.x = element_blank(),axis.ticks.x = element_blank(),
-                axis.text.x = element_blank(),legend.position = "none")+
-          expand_limits(y=c(max(x$ws)+1,min(x$ws)-1)))
+                axis.text.x = element_blank(),legend.position = "left")+
+          expand_limits(y=c(max(x$ws)+user_in_top,min(x$ws)-user_in_bottom)))
 
     input_multi_analyte_list <- input_multi %>%
       mutate(Time= as.POSIXct(Time, format = "%H:%M:%S")) %>%
@@ -86,7 +99,7 @@ ts_plot <- function(x,grp = c(), analyte = c(" "), unit = NULL,
         xlab("Time"))
 
   plot_out<-Map(
-    function(x,y){ggarrange(x,y, nrow = 2,ncol = 1, heights = c(1,3), common.legend = T,legend = "bottom",align = "hv")}
+    function(x,y){ggarrange(x,y, nrow = 2,ncol = 1, heights = c(1,3), common.legend = F,align = "hv")}
     ,plot_out_wd,plot_out_analyte)
   }else{input_multi <- input %>%
     unite("id_grp",c(id,grp)) %>%
@@ -99,12 +112,15 @@ ts_plot <- function(x,grp = c(), analyte = c(" "), unit = NULL,
 
   plot_out_wd<-input_multi_wd_list %>%
     lapply(.,function(x)
-      ggplot(x,aes(x=Time,y=ws,angle=direction_section,radius=0.0001))+
-        geom_spoke(arrow = arrow(ends = "first",length = unit(.1, 'inches')),size=1)+
+      ggplot(x,aes(x=Time,y=ws,radius=0.0001,angle=-direction_section+90))+
+        # geom_point()+
+        # geom_text(vjust=0,hjust=0)+
+        geom_text(label="→")+
+        # geom_spoke(aes(angle=direction_section),arrow = arrow(ends = "first",length = unit(.1, 'inches')),size=1)+
         ylab("WS (m/s)")+
         theme(axis.title.x = element_blank(),axis.ticks.x = element_blank(),
-              axis.text.x = element_blank(),legend.position = "none")+
-        expand_limits(y=c(max(x$ws)+1,min(x$ws)-1)))
+              axis.text.x = element_blank(),legend.position = "left")+
+        expand_limits(y=c(max(x$ws)+user_in_top,min(x$ws)-user_in_bottom)))
 
 
   input_multi_analyte_list <- input_multi %>%

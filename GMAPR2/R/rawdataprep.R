@@ -1,4 +1,4 @@
-rawdataprep <- function(path){
+rawdataprep <- function(path,time_zone){
   files_list <- list.files(path, full.names = TRUE, recursive = TRUE)
   output_df <- c()
   out_df_MA <- c()
@@ -30,7 +30,7 @@ rawdataprep <- function(path){
       mutate(across(everything(),as.character)) %>%
       mutate(`Type_DeviceName_ResidenceTime-(s)_Units_TimeStamp` = gsub("\\..*","",`Type_DeviceName_ResidenceTime-(s)_Units_TimeStamp`)) %>%
       mutate(`Type_DeviceName_ResidenceTime-(s)_Units_TimeStamp`=if_else(str_detect(`Type_DeviceName_ResidenceTime-(s)_Units_TimeStamp`,":")==FALSE,paste0("01/01/1700 00:00:00"),`Type_DeviceName_ResidenceTime-(s)_Units_TimeStamp`)) %>%
-      mutate(`Type_DeviceName_ResidenceTime-(s)_Units_TimeStamp` = as.POSIXct(`Type_DeviceName_ResidenceTime-(s)_Units_TimeStamp`, tryFormats = c("%m/%d/%Y %H:%M:%S")))
+      mutate(`Type_DeviceName_ResidenceTime-(s)_Units_TimeStamp` = as.POSIXct(`Type_DeviceName_ResidenceTime-(s)_Units_TimeStamp`, tz=time_zone, tryFormats = c("%m/%d/%Y %H:%M:%S")))
     MA_temp_5 <- MA_temp_4 %>%
       # arrange(`Type_DeviceName_ResidenceTime-(s)_Units_TimeStamp`)%>%
       filter(`Type_DeviceName_ResidenceTime-(s)_Units_TimeStamp`<as.POSIXct("1900-01-01 00:00:00", format = "%Y-%m-%d %H:%M:%S"))%>%

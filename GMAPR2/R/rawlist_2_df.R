@@ -1,4 +1,4 @@
-rawlist_2_df <- function(x, transect = c("MA","ST"),campaign = " ", loc = c("on", "off")){
+rawlist_2_df <- function(x, transect = c("MA","ST"),campaign = " ", loc = c("on", "off","NA")){
   output <- x[[transect]] %>%
     bind_rows( ,.id = "id") %>%
     mutate(id = gsub(paste0(".*","_",transect,sep=""),transect,id)) %>%
