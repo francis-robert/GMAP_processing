@@ -23,6 +23,7 @@ library(GMAPR2)
 
 use_r("rawdataprep")
 use_r("rawlist_2_df")
+use_r("onoff")
 use_r("MA_ST_bind")
 use_r("splitsville")
 use_r("subsamp_temporal_syft")

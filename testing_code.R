@@ -5,28 +5,19 @@ mdl<-read.csv("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA
 #                   time_zone = "America/Chicago")
 test<-rawdataprep( "C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/gmap_package/GMAPR/gmap_test_03_18_25",
                    time_zone = "America/Chicago")
-
-# MA_temp <- read.table("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/GMAP2 Data test/Mapping/250203/250203_MA01.txt",skip=20, sep = "\t",
-#                       fill = TRUE, na.strings = "NaN")
-# header_MA_temp <- read.table("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/GMAP2 Data test/Mapping/250203/250203_MA01.txt",sep = "\t", skip = 15, nrows = 5,fill=T,header = F) %>%
-#   replace(is.na(.),"NA") %>%
-#   mutate(across(everything(),~str_replace_all(.,"_","-"))) %>%
-#   mutate(across(everything(),~str_replace_all(.," ","-"))) %>%
-#   mutate(across(everything(),~sub("^$","BLANK",.))) %>%
-#   pivot_longer(.,cols = 1:ncol(.)) %>%
-#   mutate(name = as.numeric(gsub("V", "", name))) %>%
-#   group_by(name) %>%
-#   summarise(value = str_c(value, collapse="_")) %>%
-#   pivot_wider(.)
-
 #rawlist_2_df test####
-df_test <- rawlist_2_df(test,"MA",campaign = "GMAPTEST_2",loc="off")
-df_test_st <-rawlist_2_df(test,"ST",campaign = "GMAPTEST_2",loc="off")
+df_test <- rawlist_2_df(test,"MA",campaign = "GMAPTEST_2")
+df_test_st <-rawlist_2_df(test,"ST",campaign = "GMAPTEST_2")
 
 #MA_ST_bind test ####
 comb<-MA_ST_bind(df_test,df_test_st)
 
-split_comb<-splitsville(comb)
+#setting on and off status of specific transects
+
+comb_onoff <- onoff(comb,transect = c("250318_MA09","250318_MA10","250318_MA11"))
+
+#splitting the data by instrument
+split_comb<-splitsville(comb_onoff)
 #####getting the data subset to match the sampling interval####
 
 # samp_interval_df<-data.frame("method"=c("picarro","method_btex","method_to15"),
@@ -106,7 +97,85 @@ syft_data <- data.frame(split_comb[["syft"]])
 syft_data_sub <- subsamp_temporal_syft(syft_data,samp_int_local )
 syft_data_zeros <-subsamp_temporal_syft_zero(syft_data, samp_int_local)
 
+#####a bunch of messing with the syft data zero process####
+input_test <-syft_data %>%
+  ungroup() %>%
+  filter(value==0) %>%
+  filter(str_detect(header,"ANALYTE_")) %>%
+  mutate(header = gsub("ANALYTE_","",header)) %>%
+  left_join(.,samp_int_local,by="id",relationship = "many-to-many") %>%
+  group_by(id,header) %>%
+  mutate(group_id=cumsum(c(TRUE,diff(TimeStamp)>1))) %>%
+  # group_by(header,group_id) %>%
+  # group_by(group_id) %>%
+  ungroup()%>%
+  unite(header_grpid_grpnum,c("id","header","group_id"),sep="_",remove = F) %>%
+  group_by(header_grpid_grpnum) %>%
+  mutate(group_num=n()) %>%
+  mutate(sec_div_cyl=floor(group_num/cyl_time)) %>%
+  mutate(cyl_time=as.numeric(cyl_time))
+  # unite(header_grpid_grpnum,c("id","header","group_id","group_num"),sep="_",remove = F) %>%
 
+#
+# input_test2 <-syft_data %>%
+#   ungroup() %>%
+#   filter(value==0) %>%
+#   filter(str_detect(header,"ANALYTE_")) %>%
+#   mutate(header = gsub("ANALYTE_","",header)) %>%
+#   left_join(.,samp_int_local,by="id",relationship = "many-to-many") %>%
+#   mutate(group_id=cumsum(c(TRUE,diff(TimeStamp)>1))) %>%
+#   # group_by(header,group_id) %>%
+#   group_by(group_id) %>%
+#   mutate(group_num=n()) %>%
+#   mutate(sec_div_cyl=floor(group_num/cyl_time)) %>%
+#   mutate(cyl_time=as.numeric(cyl_time)) %>%
+#   unite(header_grpid_grpnum,c("id","group_id","group_num"),sep="_",remove = F) %>%
+#   group_by(header_grpid_grpnum)
+#
+
+# mapply(input_test,input_test2,FUN=function(v1,v2) all(input_test==input_test2) )
+#
+# identical(input_test,input_test2)
+#
+# all.equal(input_test,input_test2)
+#
+# f<-input_test2 %>%
+#   anti_join(.,input_test, by=c("group_num"))
+
+input_1 <- input_test %>%
+  filter(group_num < cyl_time) %>%
+  slice_min(TimeStamp) %>%
+  ungroup()
+input_2 <- input_test %>%
+  filter(group_num >= cyl_time) %>%
+  slice(.,seq(0,n(), by = unique(cyl_time))) %>%
+  ungroup()
+
+input_3<-input_1 %>%
+  rbind(input_2)
+input_examp <-syft_data %>%
+  ungroup() %>%
+  filter(value==0) %>%
+  filter(str_detect(header,"ANALYTE_")) %>%
+  mutate(header = gsub("ANALYTE_","",header)) %>%
+  left_join(.,samp_int_local,by="id",relationship = "many-to-many") %>%
+  group_by(id,header) %>%
+  mutate(group_id=cumsum(c(TRUE,diff(TimeStamp)>1))) %>%
+  # group_by(header,group_id) %>%
+  # group_by(group_id) %>%
+  ungroup()%>%
+  unite(header_grpid_grpnum,c("id","header","group_id"),sep="_",remove = F) %>%
+  group_by(header_grpid_grpnum) %>%
+  mutate(group_num=n()) %>%
+  # unite(header_grpid_grpnum,c("id","header","group_num"),sep="_",remove=F) %>%
+  # group_by(header_grpid_grpnum) %>%
+  mutate(sec_div_cyl=floor(group_num/cyl_time)) %>%
+  mutate(sec_div_cyl=case_when(sec_div_cyl==0~1,
+  .default = sec_div_cyl)) %>%
+  ungroup()%>%
+  distinct(header_grpid_grpnum,.keep_all = T)%>%
+  ungroup() %>%
+  summarise(total=sum(sec_div_cyl))
 
 ##pic_flag test ####
 test_pic_flag <- pic_flagging(syft_data_sub, mdl, h2shs = -1000, ch4hs = 25)
@@ -119,17 +188,25 @@ test_pic_flag <- pic_flagging(syft_data_sub, mdl, h2shs = -1000, ch4hs = 25)
 
 #transect start and stop time (can use comb, time_pic_flag, or tf after run time flagging)
 
-tran_time_minmax <- transect_time_minmax(pic_data_sub)
+tran_time_minmax <- transect_time_minmax(comb_onoff)
+
+d<-transect_max(comb_onoff)
 
 #time flag test####
 # test_pic_flag <- test_pic_flag %>%
 #   mutate(time_flag="NA")
 
 
-tf<-time_flagging(comb, timestart = "02/18/2025 09:45:00", timestop = "03/18/2025 10:54:00", timeqt = "TESTTESTTEST",
-              analyte = c("H2S","acrolein","ccl4"))
+tf<-time_flagging(comb_onoff,
+                  timestart = "02/18/2025 09:45:00",
+                  timestop = "03/18/2025 10:54:00",
+                  timeqt = "TESTTESTTEST",
+                  analyte = c("H2S","acrolein","ccl4"))
 
-tf_2<-time_flagging(tf,timestart = "03/18/2025 10:45:00", timestop = "03/18/2025 11:01:00", timeqt = "WHOOPER",
+tf_2<-time_flagging(tf,
+                    timestart = "03/18/2025 10:45:00",
+                    timestop = "03/18/2025 11:01:00",
+                    timeqt = "WHOOPER",
                     analyte = c("H2S","CH4","acetone"))
 
 
