@@ -5,8 +5,8 @@ subsamp_temporal_pic<- function(x){
     output <-x %>%
       ungroup() %>%
       filter(!value==0) %>%
-      filter(str_detect(header,"ANALYTE_")) %>%
-      mutate(header = gsub("ANALYTE_","",header)) %>%
+      # filter(str_detect(header,"ANALYTE_")) %>%
+      # mutate(header = gsub("ANALYTE_","",header)) %>%
       group_by(header)%>%
       arrange(TimeStamp) %>%
       mutate(time_grp=rleid(value)) %>%
@@ -23,8 +23,8 @@ subsamp_temporal_pic<- function(x){
     input_test<-x %>%
       ungroup() %>%
       filter(!value==0) %>%
-      filter(str_detect(header,"ANALYTE_")) %>%
-      mutate(header = gsub("ANALYTE_","",header)) %>%
+      # filter(str_detect(header,"ANALYTE_")) %>%
+      # mutate(header = gsub("ANALYTE_","",header)) %>%
       group_by(header)%>%
       arrange(TimeStamp) %>%
       mutate(time_grp=rleid(value)) %>%

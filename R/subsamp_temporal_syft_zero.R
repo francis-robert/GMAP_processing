@@ -5,8 +5,8 @@ subsamp_temporal_syft_zero<- function(x,y){
     input <-x %>%
       ungroup() %>%
       filter(value==0) %>%
-      filter(str_detect(header,"ANALYTE_")) %>%
-      mutate(header = gsub("ANALYTE_","",header)) %>%
+      # filter(str_detect(header,"ANALYTE_")) %>%
+      # mutate(header = gsub("ANALYTE_","",header)) %>%
       left_join(.,y,by="id",relationship = "many-to-many") %>%
       group_by(id,header) %>%
       mutate(group_id=cumsum(c(TRUE,diff(TimeStamp)>1))) %>%
@@ -32,8 +32,8 @@ subsamp_temporal_syft_zero<- function(x,y){
     input_test <- x %>%
       ungroup() %>%
       filter(value==0) %>%
-      filter(str_detect(header,"ANALYTE_")) %>%
-      mutate(header = gsub("ANALYTE_","",header)) %>%
+      # filter(str_detect(header,"ANALYTE_")) %>%
+      # mutate(header = gsub("ANALYTE_","",header)) %>%
       left_join(.,y,by="id",relationship = "many-to-many") %>%
       group_by(id,header) %>%
       mutate(group_id=cumsum(c(TRUE,diff(TimeStamp)>1))) %>%
@@ -61,3 +61,4 @@ subsamp_temporal_syft_zero<- function(x,y){
   }
   return(output)
 }
+

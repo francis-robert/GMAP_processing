@@ -16,8 +16,24 @@ comb<-MA_ST_bind(df_test,df_test_st)
 
 comb_onoff <- onoff(comb,transect = c("250318_MA09","250318_MA10","250318_MA11"))
 
+#time flag test####
+# test_pic_flag <- test_pic_flag %>%
+#   mutate(time_flag="NA")
+
+
+tf<-time_flagging(comb_onoff,
+                  timestart = "02/18/2025 09:45:00",
+                  timestop = "03/18/2025 10:54:00",
+                  timeqt = "TESTTESTTEST",
+                  analyte = c("H2S","acrolein","ccl4"))
+
+tf_2<-time_flagging(tf,
+                    timestart = "03/18/2025 10:45:00",
+                    timestop = "03/18/2025 11:01:00",
+                    timeqt = "WHOOPER",
+                    analyte = c("H2S","CH4","acetone"))
 #splitting the data by instrument
-split_comb<-splitsville(comb_onoff)
+split_comb<-splitsville(tf_2)
 #####getting the data subset to match the sampling interval####
 
 # samp_interval_df<-data.frame("method"=c("picarro","method_btex","method_to15"),
@@ -94,26 +110,43 @@ pic_data_sub <- subsamp_temporal_pic(pic_data)
 
 syft_data <- data.frame(split_comb[["syft"]])
 
-syft_data_sub <- subsamp_temporal_syft(syft_data,samp_int_local )
+syft_data_sub <- subsamp_temporal_syft(syft_data,samp_int_local)
 syft_data_zeros <-subsamp_temporal_syft_zero(syft_data, samp_int_local)
 
+syft_data_sub_all <- syft_data_sub %>%
+  bind_rows(.,syft_data_zeros)
+met_data<-data.frame(split_comb[["metgps"]])
+
+flow_check_test <- flow_check(met_data, flow_out = "both", flow_low = 3, flow_high = 7)
+
+
+met_qa_test <- met_data %>%
+  groundspeed_flagging(.,flag="IL") %>%
+  gps_precision_flagging(.,flag="QX")
+
+gps_flag <- gps_precision_flagging(met_data,flag="QX")
+
+syft_mdl <- read.csv ("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/2025_mdl_syft.csv")
+syft_data_qa<- syft_flagging(x=syft_data_sub_all,y=syft_mdl)
+
+# syft_data_zero_qa<- syft_flagging(x=syft_data_zeros,y=syft_mdl)
 #####a bunch of messing with the syft data zero process####
-input_test <-syft_data %>%
-  ungroup() %>%
-  filter(value==0) %>%
-  filter(str_detect(header,"ANALYTE_")) %>%
-  mutate(header = gsub("ANALYTE_","",header)) %>%
-  left_join(.,samp_int_local,by="id",relationship = "many-to-many") %>%
-  group_by(id,header) %>%
-  mutate(group_id=cumsum(c(TRUE,diff(TimeStamp)>1))) %>%
+# input_test <-syft_data %>%
+#   ungroup() %>%
+#   filter(value==0) %>%
+#   filter(str_detect(header,"ANALYTE_")) %>%
+#   mutate(header = gsub("ANALYTE_","",header)) %>%
+#   left_join(.,samp_int_local,by="id",relationship = "many-to-many") %>%
+#   group_by(id,header) %>%
+#   mutate(group_id=cumsum(c(TRUE,diff(TimeStamp)>1))) %>%
   # group_by(header,group_id) %>%
   # group_by(group_id) %>%
-  ungroup()%>%
-  unite(header_grpid_grpnum,c("id","header","group_id"),sep="_",remove = F) %>%
-  group_by(header_grpid_grpnum) %>%
-  mutate(group_num=n()) %>%
-  mutate(sec_div_cyl=floor(group_num/cyl_time)) %>%
-  mutate(cyl_time=as.numeric(cyl_time))
+  # ungroup()%>%
+  # unite(header_grpid_grpnum,c("id","header","group_id"),sep="_",remove = F) %>%
+  # group_by(header_grpid_grpnum) %>%
+  # mutate(group_num=n()) %>%
+  # mutate(sec_div_cyl=floor(group_num/cyl_time)) %>%
+  # mutate(cyl_time=as.numeric(cyl_time))
   # unite(header_grpid_grpnum,c("id","header","group_id","group_num"),sep="_",remove = F) %>%
 
 #
@@ -142,43 +175,43 @@ input_test <-syft_data %>%
 # f<-input_test2 %>%
 #   anti_join(.,input_test, by=c("group_num"))
 
-input_1 <- input_test %>%
-  filter(group_num < cyl_time) %>%
-  slice_min(TimeStamp) %>%
-  ungroup()
-input_2 <- input_test %>%
-  filter(group_num >= cyl_time) %>%
-  slice(.,seq(0,n(), by = unique(cyl_time))) %>%
-  ungroup()
-
-input_3<-input_1 %>%
-  rbind(input_2)
-input_examp <-syft_data %>%
-  ungroup() %>%
-  filter(value==0) %>%
-  filter(str_detect(header,"ANALYTE_")) %>%
-  mutate(header = gsub("ANALYTE_","",header)) %>%
-  left_join(.,samp_int_local,by="id",relationship = "many-to-many") %>%
-  group_by(id,header) %>%
-  mutate(group_id=cumsum(c(TRUE,diff(TimeStamp)>1))) %>%
-  # group_by(header,group_id) %>%
-  # group_by(group_id) %>%
-  ungroup()%>%
-  unite(header_grpid_grpnum,c("id","header","group_id"),sep="_",remove = F) %>%
-  group_by(header_grpid_grpnum) %>%
-  mutate(group_num=n()) %>%
-  # unite(header_grpid_grpnum,c("id","header","group_num"),sep="_",remove=F) %>%
-  # group_by(header_grpid_grpnum) %>%
-  mutate(sec_div_cyl=floor(group_num/cyl_time)) %>%
-  mutate(sec_div_cyl=case_when(sec_div_cyl==0~1,
-  .default = sec_div_cyl)) %>%
-  ungroup()%>%
-  distinct(header_grpid_grpnum,.keep_all = T)%>%
-  ungroup() %>%
-  summarise(total=sum(sec_div_cyl))
+# input_1 <- input_test %>%
+#   filter(group_num < cyl_time) %>%
+#   slice_min(TimeStamp) %>%
+#   ungroup()
+# input_2 <- input_test %>%
+#   filter(group_num >= cyl_time) %>%
+#   slice(.,seq(0,n(), by = unique(cyl_time))) %>%
+#   ungroup()
+#
+# input_3<-input_1 %>%
+#   rbind(input_2)
+# input_examp <-syft_data %>%
+#   ungroup() %>%
+#   filter(value==0) %>%
+#   filter(str_detect(header,"ANALYTE_")) %>%
+#   mutate(header = gsub("ANALYTE_","",header)) %>%
+#   left_join(.,samp_int_local,by="id",relationship = "many-to-many") %>%
+#   group_by(id,header) %>%
+#   mutate(group_id=cumsum(c(TRUE,diff(TimeStamp)>1))) %>%
+#   # group_by(header,group_id) %>%
+#   # group_by(group_id) %>%
+#   ungroup()%>%
+#   unite(header_grpid_grpnum,c("id","header","group_id"),sep="_",remove = F) %>%
+#   group_by(header_grpid_grpnum) %>%
+#   mutate(group_num=n()) %>%
+#   # unite(header_grpid_grpnum,c("id","header","group_num"),sep="_",remove=F) %>%
+#   # group_by(header_grpid_grpnum) %>%
+#   mutate(sec_div_cyl=floor(group_num/cyl_time)) %>%
+#   mutate(sec_div_cyl=case_when(sec_div_cyl==0~1,
+#   .default = sec_div_cyl)) %>%
+#   ungroup()%>%
+#   distinct(header_grpid_grpnum,.keep_all = T)%>%
+#   ungroup() %>%
+#   summarise(total=sum(sec_div_cyl))
 
 ##pic_flag test ####
-test_pic_flag <- pic_flagging(syft_data_sub, mdl, h2shs = -1000, ch4hs = 25)
+test_pic_flag <- pic_flagging(pic_data_sub, mdl, h2shs = -1000, ch4hs = 10)
 
 # unique(test_pic_flag$mdl_flag)
 # x <- test_pic_flag %>% filter(header == "ANALYTE_H2S")
@@ -190,73 +223,61 @@ test_pic_flag <- pic_flagging(syft_data_sub, mdl, h2shs = -1000, ch4hs = 25)
 
 tran_time_minmax <- transect_time_minmax(comb_onoff)
 
-d<-transect_max(comb_onoff)
-
-#time flag test####
-# test_pic_flag <- test_pic_flag %>%
-#   mutate(time_flag="NA")
+# d<-transect_max(comb_onoff)
 
 
-tf<-time_flagging(comb_onoff,
-                  timestart = "02/18/2025 09:45:00",
-                  timestop = "03/18/2025 10:54:00",
-                  timeqt = "TESTTESTTEST",
-                  analyte = c("H2S","acrolein","ccl4"))
-
-tf_2<-time_flagging(tf,
-                    timestart = "03/18/2025 10:45:00",
-                    timestop = "03/18/2025 11:01:00",
-                    timeqt = "WHOOPER",
-                    analyte = c("H2S","CH4","acetone"))
 
 
 #testing to see why there are nas for lat long
 
-tf_lat_long_test<- tf_2 %>%
-  filter(str_detect(header,"ANALYTE_")) %>%
-  mutate(header = gsub("ANALYTE_","",header)) %>%
-  filter(header=="GPS-Latitude" | header=="GPS-Longitude")
+# tf_lat_long_test<- tf_2 %>%
+#   filter(str_detect(header,"ANALYTE_")) %>%
+#   mutate(header = gsub("ANALYTE_","",header)) %>%
+#   filter(header=="GPS-Latitude" | header=="GPS-Longitude")
 #transect_max test, trans time min max test####
 
 tran_max<- transect_max(tf_2)
+
+tran_time <- transect_time_minmax(tf_2)
 
 
 #time series test #####
 tst<- ts_table(tf_2,rm_flagged = "no")
 
 #output data & max csv test ####
-output <- output_csv_data(tf_2,loc="off")
+output <- output_csv_data(x=test_pic_flag,y=met_qa_test, output_type = "picarro")
 
 out_distinct<-output %>%
   distinct(.)
 
 #testing the mapping functions
-x<-readPNG()
-timeseries<-ts_plot(tf_2,grp = c("A","B","Y"),
+timeseries<-ts_plot(syft_data_sub_all,met_data,grp = c("A","B","Y"),
                     analyte=c("H2S,benzene","toluene,xyleth,acetone","acrolein,butadiene"),
+                    time_labels="300 sec")
+
+timeseries_single<-ts_plot(syft_data_sub_all,met_data,analyte = "benzene",grp = "A",
                     time_labels="300 sec",
-                    arrow_png = "C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Pictures/north_arrow.png")
-
-timeseries_single<-ts_plot(tf_2,analyte = "H2S",grp = "A",
-                    time_labels="300 sec",
-                    multi_analyte = F)
-n_arrow <-data.frame(readPNG ("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Pictures/north_arrow.png"))
-
-
-tf_3<-tf_2 %>%
-  bind_rows(tf_2[1:10,]) %>%
-  mutate(value=case_when(header=="ANALYTE_H2S" & value<=0~5000,
-                         .default = value))
+                    multi_analyte = F,mdl = syft_mdl,proc="btex")
+# n_arrow <-data.frame(readPNG ("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Pictures/north_arrow.png"))
+#
+#
+# tf_3<-tf_2 %>%
+#   bind_rows(tf_2[1:10,]) %>%
+#   mutate(value=case_when(header=="ANALYTE_H2S" & value<=0~5000,
+#                          .default = value))
 break_pt <- read.csv("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/gmap_package/GMAPR/GMAPR2/analyte_breaks.csv")
-MA_test_2<-MA_map(x= tf_3,rast_path = "C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/gmap_package/GMAPR/landsat_gmap_test",
-                z=break_pt,analyte = "H2S",extent = "s", transect= "MA04",campaign = "test_test",
+MA_test_2<-MA_map(x= syft_data_sub_all,y=met_data,rast_path = "C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/gmap_package/GMAPR/landsat_gmap_test",
+                z=break_pt,analyte = "propene",extent = "w", transect= "250318_MA07",campaign = "test_test",
                 rast_type = "landsat",pt_size = 2,color_pal = "wed",zoom_scale = 100)
 
-st_test<- ST_map(x=tf_2,z=break_pt,rast_path = "C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Downloads/m_4308757_se_16_060_20220623/m_4308757_se_16_060_20220623.tif",
-                 analyte = "H2S", transect="ST02",campaign = "test_test_test",
-                 color_pal="wed",zoom_scale = 200)
+st_test<- ST_map(x= syft_data_sub_all,y=met_data,z=break_pt,
+                 rast_path = "C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Downloads/m_4308757_se_16_060_20220623/m_4308757_se_16_060_20220623.tif",
+                 analyte = "benzene",
+                 transect="250318_ST02",campaign = "test_test_test",
+                 ,zoom_scale = 200,color_pal = "o")
 
-
+# color_breaks <- break_pt %>%
+#   filter(analyte=="benzene")
 # tf_2 |>
 #   dplyr::summarise(n = dplyr::n(), .by = c(TimeStamp, header)) |>
 #   dplyr::filter(n > 1L)

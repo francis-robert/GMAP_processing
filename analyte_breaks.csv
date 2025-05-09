@@ -1,4 +1,4 @@
-break_num,thresh_low,thresh_high,analyte
+break_num,thresh_low,thresh_high,analyte_name
 1,-9999,10,H2S
 2,10,30,H2S
 3,30,70,H2S
