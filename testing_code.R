@@ -1,5 +1,5 @@
 
-mdl<-read.csv("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/2024_mdl_list.csv")
+mdl_df<-read.csv("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/2024_mdl_list.csv")
 #rawdataprep_test#####
 # test<-rawdataprep("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/GMAP2 Data test",
 #                   time_zone = "America/Chicago")
@@ -32,14 +32,27 @@ tf_2<-time_flagging(tf,
                     timestop = "03/18/2025 11:01:00",
                     timeqt = "WHOOPER",
                     analyte = c("H2S","CH4","acetone"))
+#doiong all the flagging before the splitting
+samp_int_local<-read.csv("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/gmap_package/GMAPR/GMAPR2/trans_method.csv")
+syft_mdl <- read.csv ("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/2025_mdl_syft.csv")
+
+
+flagged <- tf_2 %>%
+  groundspeed_flagging(.,flag="QX") %>%
+  gps_precision_flagging(.,flag="GPS") %>%
+  pic_flagging(., mdl_df, h2shs = -1000, ch4hs = 10) %>%
+  syft_flagging(.,syft_mdl)
+
+flow_check(flagged,flow_out = "both",flow_low = 3, flow_high = 3)
+
 #splitting the data by instrument
-split_comb<-splitsville(tf_2)
+split_comb<-splitsville(flagged)
 #####getting the data subset to match the sampling interval####
 
 # samp_interval_df<-data.frame("method"=c("picarro","method_btex","method_to15"),
 #                    "res_time"=c(3,3,10))
 
-samp_int_local<-read.csv("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/gmap_package/GMAPR/GMAPR2/trans_method.csv")
+
 
 # syft_test<-split_comb[["syft"]] %>%
 #   filter(!is.na(value)) %>%
@@ -117,17 +130,22 @@ syft_data_sub_all <- syft_data_sub %>%
   bind_rows(.,syft_data_zeros)
 met_data<-data.frame(split_comb[["metgps"]])
 
-flow_check_test <- flow_check(met_data, flow_out = "both", flow_low = 3, flow_high = 7)
+# flow_check_test <- flow_check(met_data, flow_out = "both", flow_low = 3, flow_high = 7)
 
 
-met_qa_test <- met_data %>%
-  groundspeed_flagging(.,flag="IL") %>%
-  gps_precision_flagging(.,flag="QX")
+# met_qa_test <- met_data %>%
+#   groundspeed_flagging(.,flag="IL") %>%
+#   gps_precision_flagging(.,flag="QX")
 
-gps_flag <- gps_precision_flagging(met_data,flag="QX")
 
-syft_mdl <- read.csv ("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/2025_mdl_syft.csv")
-syft_data_qa<- syft_flagging(x=syft_data_sub_all,y=syft_mdl)
+# d<-groundspeed_flagging(met_data,flag="IL")
+#
+# x<-d %>%
+#   filter(gs_flag=="IL")
+# gps_flag <- gps_precision_flagging(met_data,flag="QX")
+#
+#
+# syft_data_qa<- syft_flagging(x=syft_data_sub_all,y=syft_mdl)
 
 # syft_data_zero_qa<- syft_flagging(x=syft_data_zeros,y=syft_mdl)
 #####a bunch of messing with the syft data zero process####
@@ -211,7 +229,7 @@ syft_data_qa<- syft_flagging(x=syft_data_sub_all,y=syft_mdl)
 #   summarise(total=sum(sec_div_cyl))
 
 ##pic_flag test ####
-test_pic_flag <- pic_flagging(pic_data_sub, mdl, h2shs = -1000, ch4hs = 10)
+# test_pic_flag <- pic_flagging(pic_data_sub, mdl, h2shs = -1000, ch4hs = 10)
 
 # unique(test_pic_flag$mdl_flag)
 # x <- test_pic_flag %>% filter(header == "ANALYTE_H2S")
@@ -221,7 +239,7 @@ test_pic_flag <- pic_flagging(pic_data_sub, mdl, h2shs = -1000, ch4hs = 10)
 
 #transect start and stop time (can use comb, time_pic_flag, or tf after run time flagging)
 
-tran_time_minmax <- transect_time_minmax(comb_onoff)
+tran_time_minmax <- transect_time_minmax(flagged)
 
 # d<-transect_max(comb_onoff)
 
@@ -236,7 +254,7 @@ tran_time_minmax <- transect_time_minmax(comb_onoff)
 #   filter(header=="GPS-Latitude" | header=="GPS-Longitude")
 #transect_max test, trans time min max test####
 
-tran_max<- transect_max(tf_2)
+tran_max<- transect_max(flagged)
 
 tran_time <- transect_time_minmax(tf_2)
 
