@@ -5,8 +5,8 @@ subsamp_temporal_syft<- function(x,y){
   input <-x %>%
     ungroup() %>%
     filter(!value==0) %>%
-    filter(str_detect(header,"ANALYTE_")) %>%
-    mutate(header = gsub("ANALYTE_","",header)) %>%
+    # filter(str_detect(header,"ANALYTE_")) %>%
+    # mutate(header = gsub("ANALYTE_","",header)) %>%
     left_join(.,y,by="id",relationship = "many-to-many") %>%
     group_by(header)%>%
     arrange(TimeStamp) %>%

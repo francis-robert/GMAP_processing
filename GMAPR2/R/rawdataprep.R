@@ -4,7 +4,7 @@ rawdataprep <- function(path,time_zone){
   out_df_MA <- c()
   out_df_ST <- c()
   data_MA <- subset(files_list, grepl("_MA", files_list))
-  if(length(data_MA) == 0){
+if(length(data_MA) == 0){
     print("No Mapping Transects")
   }else{for (i in seq_along(data_MA)){
     MA_temp <- read.table(data_MA[[i]],skip=20, sep = "\t",

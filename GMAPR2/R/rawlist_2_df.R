@@ -1,12 +1,11 @@
-rawlist_2_df <- function(x, transect = c("MA","ST"),campaign = " ", loc = c("on", "off","NA")){
+rawlist_2_df <- function(x, transect = c("MA","ST"),campaign = " "){
   output <- x[[transect]] %>%
     bind_rows( ,.id = "id") %>%
-    mutate(id = gsub(paste0(".*","_",transect,sep=""),transect,id)) %>%
+    mutate(id = gsub('.*/',"\\1",id)) %>%
     mutate(id = gsub("\\..*","",id)) %>%
     rename_with(~ str_extract(.x, "TimeStamp"),
                 matches("TimeStamp")) %>%
-    mutate(campaign = campaign) %>%
-    mutate(loc_samp = loc)
+    mutate(campaign = campaign)
 
   output_time <- output %>%
     filter(TimeStamp>as.POSIXct("1900-01-01 00:00:00", format = "%Y-%m-%d %H:%M:%S"))

@@ -1,22 +1,22 @@
-MA_map <- function(x, rast_path, z, analyte, extent, transect=NULL, pt_size=10,
+MA_map <- function(x,y, rast_path, z, analyte, extent, transect=NULL, pt_size=10,
                    campaign = NULL, multi_rast = NULL,color_pal=switch(o),
                    rast_red=3, rast_green=4, rast_blue=5,zoom_scale=550,
                    rast_type = c("naip","landsat")){
 #once I get a better data set the below commented out code will be used to process
 #the spatial data to get it ready for plotting
-  data_nolocs <- x %>%
-    filter(str_detect(header,"ANALYTE_")) %>%
-    mutate(header = gsub("ANALYTE_","",header)) %>%
-    filter(!header == "GPS-Latitude" | !header == "GPS-Longitude")
+  data_analyte <- x
+    # filter(str_detect(header,"ANALYTE_")) %>%
+    # mutate(header = gsub("ANALYTE_","",header)) %>%
+    # filter(!header == "GPS-Latitude" | !header == "GPS-Longitude")
 
-  data_locs <- x %>%
-    filter(str_detect(header,"ANALYTE_")) %>%
-    mutate(header = gsub("ANALYTE_","",header)) %>%
+  locs <- y %>%
+    # filter(str_detect(header,"ANALYTE_")) %>%
+    # mutate(header = gsub("ANALYTE_","",header)) %>%
     filter(header == "GPS-Latitude" | header == "GPS-Longitude") %>%
     pivot_wider(.,id_cols = c(TimeStamp,id),names_from = header)
 
-  data_comb <- data_nolocs %>%
-    left_join(., data_locs, by=c("TimeStamp","id"))
+  data_comb <- data_analyte %>%
+    left_join(., locs, by=c("TimeStamp","id"))
 
   data_sf <-data_comb %>%
     st_as_sf(.,coords = c("GPS-Longitude","GPS-Latitude"),crs=4326) %>%
@@ -41,17 +41,19 @@ MA_map <- function(x, rast_path, z, analyte, extent, transect=NULL, pt_size=10,
   p<-c("#ffefff","#ffd5ff","#e5bbff","#caa2e7",
           "#b189cd","#9771b3","#7f5a9a","#674482")
 
-    raster_list <- list.files(path=rast_path, pattern = c(".tif|.TIF"),full.names = T)
-  if(!is.null(multi_rast)){
-    raster_raw <-lapply(raster_list,rast)
-    raster <- do.call(mosaic,raster_raw)
-    writeRaster(raster,paste0(campaign,"_interim_raster_mosaic.tif"))
-    print("Mosaiced Raster has been generated! Change rast_path
-          to utilize the novel generated raster.")
-  }else {
-    raster <- rast(raster_list)
-  }
+  raster_list <- list.files(path=rast_path, pattern = c(".tif|.TIF"),full.names = T)
+  # if(!is.null(multi_rast)){
+  #   raster_raw <-lapply(raster_list,rast)
+  #   raster <- do.call(mosaic,raster_raw)
+  #   print("Mosaiced Raster has been generated! Change rast_path
+  #         to utilize the novel generated raster.")
+  #   writeRaster(raster_raw,paste0(campaign,"_interim_raster_mosaic.tif"))
+    # print("Mosaiced Raster has been generated! Change rast_path
+    #       to utilize the novel generated raster.")
+  # }else {
+  raster <- rast(raster_list)
   raster_crs <- crs(raster)
+  print(raster_crs)
   if(extent=="w"){
       data_sf_clip <-data_sf %>%
         st_transform(.,crs=st_crs(crs(raster_crs)))
@@ -107,7 +109,7 @@ data_sf_sub <- data_sf_clip %>%
                             value > color_breaks$thresh_low[2] & value <= color_breaks$thresh_high[7] ~ paste0(color_breaks$thresh[7]),
                             value > color_breaks$thresh_high[8] ~ paste0(color_breaks$thresh[8]),
                             .default = "NA")) %>%
-  left_join(., color_breaks, by = c("header"="analyte"),relationship="many-to-many")
+  left_join(., color_breaks, by = c("header"="analyte_name"),relationship="many-to-many")
 
 if(rast_type=="landsat"){
   output<-ggplot(data = data_sf_sub)+
@@ -140,9 +142,9 @@ output<-ggplot(data = data_sf_sub)+
                    mapping = aes(
                      x = x,
                      y = y,
-                     r = b4,
-                     g = b3,
-                     b = b2))+
+                     r = red,
+                     g = green,
+                     b = blue))+
   geom_sf(aes(color=thresh),size=pt_size,show.legend = T)+
   geom_sf(aes(color=thresh_color),size=pt_size, show.legend = F)+
   scale_color_manual(name=analyte,
@@ -159,5 +161,5 @@ output<-ggplot(data = data_sf_sub)+
   theme(axis.title = element_blank(), panel.background = element_blank(),
         axis.ticks = element_blank())
 }
-return(output)
+ return(output)
 }

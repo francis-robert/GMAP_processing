@@ -5,19 +5,17 @@ subsamp_temporal_syft_zero<- function(x,y){
     input <-x %>%
       ungroup() %>%
       filter(value==0) %>%
-      filter(str_detect(header,"ANALYTE_")) %>%
-      mutate(header = gsub("ANALYTE_","",header)) %>%
+      # filter(str_detect(header,"ANALYTE_")) %>%
+      # mutate(header = gsub("ANALYTE_","",header)) %>%
       left_join(.,y,by="id",relationship = "many-to-many") %>%
+      group_by(id,header) %>%
       mutate(group_id=cumsum(c(TRUE,diff(TimeStamp)>1))) %>%
-      group_by(header,group_id) %>%
+      ungroup()%>%
+      unite(header_grpid_grpnum,c("id","header","group_id"),sep="_",remove = F) %>%
+      group_by(header_grpid_grpnum) %>%
       mutate(group_num=n()) %>%
       mutate(sec_div_cyl=floor(group_num/cyl_time)) %>%
-      # # mutate(sec_div_cyl=case_when(sec_div_cyl==0~1,
-      # #                              .default = sec_div_cyl)) %>%
-      # #
-      # arrange(TimeStamp) %>%
-      unite(header_grpid_grpnum,c("header","group_id","group_num"),sep="_",remove = F) %>%
-      group_by(header_grpid_grpnum)
+      mutate(cyl_time=as.numeric(cyl_time))
 
     input_1 <- input %>%
       filter(group_num < cyl_time) %>%
@@ -25,29 +23,29 @@ subsamp_temporal_syft_zero<- function(x,y){
       ungroup()
     input_2 <- input %>%
       filter(group_num >= cyl_time) %>%
-      slice(.,seq(0, n(), by = unique(cyl_time))) %>%
+      slice(.,seq(0,n(), by = unique(cyl_time))) %>%
       ungroup()
 
     output <- input_1 %>%
       bind_rows(input_2)
 
-    input_test <-x %>%
+    input_test <- x %>%
       ungroup() %>%
       filter(value==0) %>%
-      filter(str_detect(header,"ANALYTE_")) %>%
-      mutate(header = gsub("ANALYTE_","",header)) %>%
+      # filter(str_detect(header,"ANALYTE_")) %>%
+      # mutate(header = gsub("ANALYTE_","",header)) %>%
       left_join(.,y,by="id",relationship = "many-to-many") %>%
+      group_by(id,header) %>%
       mutate(group_id=cumsum(c(TRUE,diff(TimeStamp)>1))) %>%
-      group_by(header,group_id) %>%
+      ungroup()%>%
+      unite(header_grpid_grpnum,c("id","header","group_id"),sep="_",remove = F) %>%
+      group_by(header_grpid_grpnum) %>%
       mutate(group_num=n()) %>%
       mutate(sec_div_cyl=floor(group_num/cyl_time)) %>%
       mutate(sec_div_cyl=case_when(sec_div_cyl==0~1,
                                    .default = sec_div_cyl)) %>%
       ungroup()%>%
-      unite(header_grpid_grpnum,c("header","group_id","group_num"),sep="_",remove=F) %>%
-      group_by(header_grpid_grpnum) %>%
-      distinct(header_grpid_grpnum,.keep_all = T) %>%
-      ungroup() %>%
+      distinct(header_grpid_grpnum,.keep_all = T)%>%
       summarise(total=sum(sec_div_cyl))
 
     if(nrow(output)/input_test$total>1){
@@ -61,5 +59,6 @@ subsamp_temporal_syft_zero<- function(x,y){
       print(paste("Column Total Seconds/Cycle Time =", input_test$total))
     }
   }
-  return(input)
+  return(output)
 }
+
