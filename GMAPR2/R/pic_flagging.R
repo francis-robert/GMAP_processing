@@ -3,6 +3,7 @@ pic_flagging <- function(x, y, h2shs=NULL,ch4hs=NULL){
 
   data <- x %>%
     left_join(.,mdl, by=c("header" = "analyte")) %>%
+    unite(mdl_analyte_procedure_comb, c("header","mdl_procedure"),sep="_", remove = F) %>%
     mutate(mdl_flag = "NA") %>%
     mutate(mdl_flag = case_when(instrument == "Picarro-G2204" & header == "CH4" & value < (-abs(mdl)) ~ "ND",
                                 instrument == "Picarro-G2204" & header == "CH4" & value >= (-abs(mdl)) & value <= (abs(mdl)) ~ "MD",

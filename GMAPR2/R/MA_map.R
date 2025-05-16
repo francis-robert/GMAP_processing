@@ -4,6 +4,7 @@ MA_map <- function(x,y, rast_path, z, analyte, extent, transect=NULL, pt_size=10
                    rast_type = c("naip","landsat")){
 #once I get a better data set the below commented out code will be used to process
 #the spatial data to get it ready for plotting
+  analyte_vec<-as.vector(analyte)
   data_analyte <- x
     # filter(str_detect(header,"ANALYTE_")) %>%
     # mutate(header = gsub("ANALYTE_","",header)) %>%
@@ -23,7 +24,7 @@ MA_map <- function(x,y, rast_path, z, analyte, extent, transect=NULL, pt_size=10
     filter(grepl("MA",id))
 
   color_breaks <- z %>%
-    filter(analyte==analyte) %>%
+    filter(analyte==analyte_vec) %>%
     unite("thresh", c(thresh_low,thresh_high), sep = "-", remove = FALSE) %>%
     mutate(thresh=str_replace(thresh, "-9999-","< ")) %>%
     mutate(thresh=str_replace(thresh, "-9998-","> "))
@@ -99,7 +100,7 @@ MA_map <- function(x,y, rast_path, z, analyte, extent, transect=NULL, pt_size=10
 }
 
 data_sf_sub <- data_sf_clip %>%
-  filter(header==analyte) %>%
+  filter(header==analyte_vec) %>%
   mutate(thresh_color = case_when(value <= color_breaks$thresh_high[1] ~ paste0(color_breaks$thresh[1]),
                             value > color_breaks$thresh_low[2] & value <= color_breaks$thresh_high[2] ~ paste0(color_breaks$thresh[2]),
                             value > color_breaks$thresh_low[2] & value <= color_breaks$thresh_high[3] ~ paste0(color_breaks$thresh[3]),

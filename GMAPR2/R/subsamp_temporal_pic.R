@@ -1,55 +1,63 @@
-subsamp_temporal_pic<- function(x){
+subsamp_temporal_pic<- function(x,cyl_time){
   if (!unique(x$instrument=="Picarro-G2204")){
     print("NOT Picarro data...do not pass go, do not collect $200")
   }else{
-    output <-x %>%
+    input_1 <-x %>%
       ungroup() %>%
-      filter(!value==0) %>%
-      # filter(str_detect(header,"ANALYTE_")) %>%
-      # mutate(header = gsub("ANALYTE_","",header)) %>%
       group_by(header)%>%
       arrange(TimeStamp) %>%
       mutate(time_grp=rleid(value)) %>%
       group_by(header,time_grp) %>%
       mutate(group_id=n()) %>%
+      mutate(within_group_number=row_number()) %>%
       unite("analyte_timegrp_idgrp",c("header","time_grp","group_id"),sep="_",remove = F) %>%
       mutate(cyl_time = 3) %>%
       ungroup() %>%
       group_by(analyte_timegrp_idgrp) %>%
       mutate(sec_div_cyl = floor(group_id/cyl_time)) %>%
-      slice(.,seq(0, n(), by = unique(cyl_time))) %>%
-      ungroup()
+      ungroup()%>%
+      arrange(TimeStamp) %>%
+      group_by(analyte_procedure,within_group_number) %>%
+      filter(!sec_div_cyl>1) %>%
+      mutate(keep=case_when(sec_div_cyl < 1 & within_group_number==1~ 1,
+                            sec_div_cyl == 1 & within_group_number == cyl_time ~1,
+                            .default = 0)) %>%
+      filter(keep==1) %>%
+      mutate(time_grp=as.character(time_grp))
 
-    input_test<-x %>%
+    input_2<- x %>%
       ungroup() %>%
-      filter(!value==0) %>%
-      # filter(str_detect(header,"ANALYTE_")) %>%
-      # mutate(header = gsub("ANALYTE_","",header)) %>%
       group_by(header)%>%
       arrange(TimeStamp) %>%
       mutate(time_grp=rleid(value)) %>%
       group_by(header,time_grp) %>%
       mutate(group_id=n()) %>%
+      mutate(within_group_number=row_number()) %>%
       unite("analyte_timegrp_idgrp",c("header","time_grp","group_id"),sep="_",remove = F) %>%
       mutate(cyl_time = 3) %>%
       ungroup() %>%
-      # group_by(analyte_timegrp_idgrp) %>%
+      group_by(analyte_timegrp_idgrp) %>%
       mutate(sec_div_cyl = floor(group_id/cyl_time)) %>%
-      distinct(analyte_timegrp_idgrp,.keep_all = T) %>%
-      summarise(total=sum(sec_div_cyl))
+      ungroup()%>%
+      arrange(TimeStamp) %>%
+      group_by(analyte_procedure,within_group_number) %>%
+      filter(sec_div_cyl>1) %>%
+      slice(.,seq(0,n(),by=unique(cyl_time))) %>%
+      mutate(keep=1) %>%
+      unite(time_grp,c("time_grp","within_group_number"),sep = "_")
 
-    if(nrow(output)/input_test$total>1){
-      print("Subset data has more rows than raw")
-      print(paste("Output Row Count =",nrow(output)))
-      print(paste("Column Total Seconds/Cycle Time=", input_test$total))
-      print(paste("Ratio Output Row Count/ (Column Total Seconds/Cycle Time) =",nrow(output)/input_test$total))
-    }else{
-      print(paste("Ratio Output Row Count/ (Column Total Seconds/Cycle Time) =",nrow(output)/input_test$total))
-      print(paste("Output Row Count =",nrow(output)))
-      print(paste("Column Total Seconds/Cycle Time =", input_test$total))
-    }
+     output <- input_1 %>%
+       bind_rows(.,input_2) %>%
+       ungroup()
 
+ print(nrow(output)/(nrow(x)/cyl_time))
+
+     output_wide <- output %>%
+       # unite(unique_id,c("analyte_procedure","time_grp","within_group_number"),sep="_",remove = F)%>%
+       # distinct(.,.keep_all = T) %>%
+       pivot_wider(.,id_cols=time_grp,names_from = analyte_procedure,
+                   values_from =c(value,time_mdl_flag,TimeStamp))
 }
 
-  return(output)
+  return(output_wide)
 }

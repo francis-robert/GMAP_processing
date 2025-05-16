@@ -1,13 +1,15 @@
 #test 2
 
-setwd("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/may_2_2025_test")
+# setwd("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/may_2_2025_test")
 
-mdl<-read.csv("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/2024_mdl_list.csv")
+mdl_df<-read.csv("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/2025_mdl.csv")
+samp_int_local<-read.csv("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/may_2_2025_test/trans_method_250507.csv")
 #rawdataprep_test#####
 # test<-rawdataprep("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/GMAP2 Data test",
 #                   time_zone = "America/Chicago")
 test<-rawdataprep("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/may_2_2025_test",
                    time_zone = "America/Chicago")
+
 ######
 #trouble shooting the the issue where MA04 had not header
 # files_list <- list.files("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/may_2_2025_test", full.names = TRUE, recursive = TRUE)
@@ -37,7 +39,7 @@ test<-rawdataprep("C:/Users/rfranc01/OneDrive - Environmental Protection Agency 
 #####
 df_test <- rawlist_2_df(test,"MA",campaign = "GMAPTEST_5_7_25")
 
-comb<-MA_ST_bind(df_test)
+comb<-MA_ST_bind(df_test, samp_int_local)
 
 comb_onoff <- onoff(comb)
 
@@ -57,23 +59,60 @@ tf_2<-time_flagging(tf,
                     timeqt = "TEST2",
                     analyte = c("CH4","acetone","mek","pce"))
 
+# syft_mdl <- read.csv ("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/2025_mdl_syft.csv")
+
+
+flagged <- tf_2 %>%
+  groundspeed_flagging(.,flag="QX") %>%
+  gps_precision_flagging(.,flag="GPS") %>%
+  pic_flagging(., mdl_df, h2shs = -1000, ch4hs = 10) %>%
+  syft_flagging(.)
+
+flagged_2 <-tf_2 %>%
+  groundspeed_flagging(.,flag="QX") %>%
+  gps_precision_flagging(.,flag="GPS") %>%
+  # pic_flagging(., mdl_df, h2shs = -1000, ch4hs = 10) %>%
+  syft_flagging(.,mdl_df)
+
+flow_check(flagged,flow_out = "both",flow_low = 3, flow_high = 10)
+
+split_comb<- splitsville(flagged)
+pic_data<-data.frame(split_comb[["picarro"]])
+syft_data <- data.frame(split_comb[["syft"]])
+met_data<-data.frame(split_comb[["metgps"]])
+
+pic_data_met <- met_analyte_comb(met_data,pic_data)
+syft_data_met <-met_analyte_comb(met_data,syft_data)
+
+pic_data_sub <- subsamp_temporal_pic(pic_data_met,cyl_time = 3)
+pic_data_sub_2 <- subsamp_temporal_pic(pic_data_met)
+syft_data_sub <- subsamp_temporal_syft(syft_data,samp_int_local)
+syft_data_sub_2<-subsamp_temporal_syft(syft_data,samp_int_local)
+syft_data_zeros <-subsamp_temporal_syft_zero(syft_data, samp_int_local)
+
+syft_data_sub_all <- syft_data_sub_2 %>%
+  bind_rows(.,syft_data_zeros)
+x<-output_csv_data(pic_data_sub)
+
+
+us_states <- read_sf("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/GMAP_Xact/gmap_package/GMAPR/GMAPR2/cb_2018_us_county_20m/cb_2018_us_county_20m.shp")
+
+
+x<-met_wide(flagged)
+
 
 split_comb<-splitsville(tf_2)
 
-samp_int_local<-read.csv("C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Documents/new_van_example/may_2_2025_test/trans_method_250507.csv")
 
-pic_data<-data.frame(split_comb[["picarro"]])
+
 
 pic_data_sub <- subsamp_temporal_pic(pic_data)
 
-syft_data <- data.frame(split_comb[["syft"]])
 
-syft_data_sub <- subsamp_temporal_syft(syft_data,samp_int_local)
-syft_data_zeros <-subsamp_temporal_syft_zero(syft_data, samp_int_local)
+
 
 syft_data_sub_all <- syft_data_sub %>%
   bind_rows(.,syft_data_zeros)
-met_data<-data.frame(split_comb[["metgps"]])
 
 flow_check_test <- flow_check(met_data, flow_out = "both", flow_low = 3, flow_high = 7)
 
@@ -101,7 +140,7 @@ raster_comb(rast_path = "C:/Users/rfranc01/OneDrive - Environmental Protection A
             campaign = "test_test")
 rast_comb_time <- Sys.time()-start
 MA_test_2<-MA_map(x= syft_data_sub_all,y=met_data,rast_path = "C:/Users/rfranc01/OneDrive - Environmental Protection Agency (EPA)/Downloads/landsat_2",
-                  z=break_pt, analyte = "benzene",extent = "w", transect= "250507_MA10",campaign = "test_test",
+                  z=break_pt, analyte = "benzene",extent = "s", transect= "250507_MA14",campaign = "test_test",
                   rast_type = "landsat",pt_size = 2,color_pal = "wed",zoom_scale = 500)
 
 

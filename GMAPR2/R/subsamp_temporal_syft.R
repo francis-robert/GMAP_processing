@@ -43,13 +43,13 @@ subsamp_temporal_syft<- function(x,y){
     filter(group_id > cyl_time+1) %>%
     mutate("sec_div_cyl"=floor(group_id/cyl_time))
 
-  filter_dirty_above_1 <- filter_dirty_above %>%
-    filter(sec_div_cyl==1) %>%
-    slice_min(TimeStamp) %>%
-    ungroup()
+  # filter_dirty_above_1 <- filter_dirty_above %>%
+  #   filter(sec_div_cyl==1) %>%
+  #   slice_min(TimeStamp) %>%
+  #   ungroup()
 
   filter_dirty_above_multi <- filter_dirty_above %>%
-    filter(!sec_div_cyl==1) %>%
+    # filter(!sec_div_cyl==1) %>%
     arrange(TimeStamp) %>%
     # mutate(short_subset=group_id-cyl_time) %>%
     # slice(.,seq(1, unique(short_subset))) %>%
@@ -57,7 +57,9 @@ subsamp_temporal_syft<- function(x,y){
     ungroup()
 
   output <- filter_clean %>%
-    bind_rows(.,filter_dirty_below,filter_dirty_above_1,
+    bind_rows(.,
+               filter_dirty_below,
+              # filter_dirty_above_1,
               filter_dirty_above_multi)
 
   }

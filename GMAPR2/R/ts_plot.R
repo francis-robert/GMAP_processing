@@ -131,32 +131,32 @@ ts_plot <- function(x,y,grp = c(), analyte = c(" "), unit = NULL,
 
 
   input_multi_analyte_list <- input_multi %>%
-    filter(header==analyte & procedure==proc) %>%
-    mutate(Time= as.POSIXct(Time, format = "%H:%M:%S")) %>%
-    left_join(.,mdl,by=c("header"="analyte","procedure")) %>%
-    {setNames(group_split(.), group_keys(.)[[1]])}
+    filter(header==analyte & syft.procedure==proc) %>%
+    mutate(Time= as.POSIXct(Time, format = "%H:%M:%S"))
+    # left_join(.,mdl,by=c("header"="analyte","syft.procedure"))
+    # {setNames(group_split(.), group_keys(.)[[1]])}
 
 
 
-  plot_out_analyte<-input_multi_analyte_list %>%
-    lapply(.,function(x)
-      ggplot(x, aes(x=Time,y=value,color=header))+
-        geom_point()+
-        geom_line()+
-        scale_color_manual(values=c("blue3","darkorange","chartreuse3",
-                                    "firebrick2","blueviolet","orange4",
-                                    "violetred","honeydew4","gold2",
-                                    "turquoise2"),drop=FALSE,
-                           name=gsub("-.*","",unique(x$id_grp)))+
-        geom_hline(aes(yintercept=unique(mdl),linetype="MDL"))+
-        geom_hline(aes(yintercept=unique(sql),linetype="SQL"))+
-        scale_linetype_manual("Critical Values",values=c("MDL"="aa","SQL"="solid"))+
-        scale_x_datetime(date_breaks= time_labels,date_labels = ("%H:%M:%S"))+
-        ylab(paste0("Analyte Concentration ",unit))+
-        xlab("Time"))
+  # plot_out_analyte<-input_multi_analyte_list %>%
+  #   lapply(.,function(x)
+  #     ggplot(x, aes(x=Time,y=value,color=header))+
+  #       geom_point()+
+  #       geom_line()+
+  #       scale_color_manual(values=c("blue3","darkorange","chartreuse3",
+  #                                   "firebrick2","blueviolet","orange4",
+  #                                   "violetred","honeydew4","gold2",
+  #                                   "turquoise2"),drop=FALSE,
+  #                          name=gsub("-.*","",unique(x$id_grp)))+
+  #       geom_hline(aes(yintercept=unique(mdl),linetype="MDL"))+
+  #       geom_hline(aes(yintercept=unique(sql),linetype="SQL"))+
+  #       scale_linetype_manual("Critical Values",values=c("MDL"="aa","SQL"="solid"))+
+  #       scale_x_datetime(date_breaks= time_labels,date_labels = ("%H:%M:%S"))+
+  #       ylab(paste0("Analyte Concentration ",unit))+
+  #       xlab("Time"))
    }
-  plot_out<-Map(
-    function(x,y){ggarrange(x,y, nrow = 2,ncol = 1, heights = c(1,3), common.legend = T,legend = "bottom",align = "hv")}
-    ,plot_out_wd,plot_out_analyte)
-  return(plot_out)
+  # plot_out<-Map(
+  #   function(x,y){ggarrange(x,y, nrow = 2,ncol = 1, heights = c(1,3), common.legend = T,legend = "bottom",align = "hv")}
+  #   ,plot_out_wd,plot_out_analyte)
+  return(input_multi)
 }
