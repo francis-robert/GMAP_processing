@@ -1,4 +1,4 @@
-subsamp_temporal_pic<- function(x,cyl_time){
+subsamp_temporal_pic<- function(x,cyl_time=3){
   if (!unique(x$instrument=="Picarro-G2204")){
     print("NOT Picarro data...do not pass go, do not collect $200")
   }else{
@@ -51,13 +51,7 @@ subsamp_temporal_pic<- function(x,cyl_time){
        ungroup()
 
  print(nrow(output)/(nrow(x)/cyl_time))
-
-     output_wide <- output %>%
-       # unite(unique_id,c("analyte_procedure","time_grp","within_group_number"),sep="_",remove = F)%>%
-       # distinct(.,.keep_all = T) %>%
-       pivot_wider(.,id_cols=time_grp,names_from = analyte_procedure,
-                   values_from =c(value,time_mdl_flag,TimeStamp))
 }
 
-  return(output_wide)
+  return(output)
 }

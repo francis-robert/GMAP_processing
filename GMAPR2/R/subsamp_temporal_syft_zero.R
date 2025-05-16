@@ -17,7 +17,7 @@ subsamp_temporal_syft_zero<- function(x,y){
       mutate(sec_div_cyl=floor(group_num/cyl_time)) %>%
       mutate(cyl_time=as.numeric(cyl_time))
 
-    input_1 <- input %>%
+    input_zero_below <- input %>%
       filter(group_num < cyl_time) %>%
       slice_min(TimeStamp) %>%
       ungroup()

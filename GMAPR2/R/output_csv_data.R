@@ -1,35 +1,25 @@
-output_csv_data <- function (x, output_type=c("syft", "picarro", "met", "all")){
+output_csv_data <- function (x, write=T,output_type = c("syft","picarro","met")){
 
-  out_begin <- x %>%
-    select(id,Date,Time,TimeStamp,`GPS-Latitude`,`GPS-Longitude`,gps_flag,ws,gs_flag,
-           wd) %>%
+  if(write==T){
+  out <- x %>%
+    select(id,campaign,Date,Time,TimeStamp,`GPS-Latitude`,`GPS-Longitude`,gps_flag,ws,gs_flag,
+           wd,header,value,time_mdl_flag,analyte_procedure,cyl_time,sec_div_cyl) %>%
     mutate(wd_flag = gs_flag) %>%
-    rename("ws_flag"="gs_flag")
+    separate(time_mdl_flag,c("time_flag","mdl_flag")) %>%
+    rename("ws_flag"="gs_flag", "analyte"="header") %>%
+    mutate(units = if_else(analyte=="CH4","ppm","ppb"))
 
-  analyte_min <-x %>%
-    slice_min(TimeStamp,n=1)
-
-  analytes_values <- x %>%
-    select(TimeStamp,header,value,id) %>%
-    group_by(id,header)%>%
-    mutate(ingroup_num=row_number()) %>%
-    ungroup()%>%
-    pivot_wider(.,id_cols = c(id,ingroup_num),names_from = header,
-                 values_from = value)
-
-  analyte_timestamp<-x %>%
-    select(TimeStamp,header,id) %>%
-    group_by(id,header)%>%
-    mutate(ingroup_num=row_number()) %>%
-    ungroup()%>%
-    arrange(TimeStamp) %>%
-    filter(header==analyte_min$header)
-
-  analyte_out <- analytes_values %>%
-    left_join(.,analyte_timestamp,by=c("ingroup_num","id"))
-
-  # out <- out_begin %>%
-  #   left_join(.,)
-
-   }
+  write.csv(out, paste0(unique(x$campaign),"_",output_type,".csv"))
+  }else{
+    print("No CSV output will be created")
+    out <- x %>%
+      select(id,campaign,Date,Time,TimeStamp,`GPS-Latitude`,`GPS-Longitude`,gps_flag,ws,gs_flag,
+             wd,header,value,time_mdl_flag,analyte_procedure,cyl_time,sec_div_cyl) %>%
+      mutate(wd_flag = gs_flag) %>%
+      separate(time_mdl_flag,c("time_flag","mdl_flag")) %>%
+      rename("ws_flag"="gs_flag", "analyte"="header") %>%
+      mutate(units = if_else(analyte=="CH4","ppm","ppb"))
+    return(out)
+  }
+}
 
