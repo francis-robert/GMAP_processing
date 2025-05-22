@@ -7,8 +7,10 @@ splitsville <- function(x) {
     filter(instrument=="Picarro-G2204") %>%
     unite(id_TimeStamp,c("id","TimeStamp"),sep = "@",remove=F)
   met_gps <- x %>%
-    filter(instrument=="AirMar" | instrument == "AliCat-FP-25"|instrument=="GPS"
-           |instrument=="IonSciencePID") %>%
+    filter(instrument=="AirMar" |
+             instrument == "AliCat-FP-25"|
+             instrument=="GPS"|
+             instrument=="IonSciencePID") %>%
     unite(id_TimeStamp,c("id","TimeStamp"),sep = "@",remove=F)
 
   split_list[["syft"]]<-syft

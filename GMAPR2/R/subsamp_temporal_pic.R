@@ -22,8 +22,7 @@ subsamp_temporal_pic<- function(x,cyl_time=3){
       mutate(keep=case_when(sec_div_cyl < 1 & within_group_number==1~ 1,
                             sec_div_cyl == 1 & within_group_number == cyl_time ~1,
                             .default = 0)) %>%
-      filter(keep==1) %>%
-      mutate(time_grp=as.character(time_grp))
+      filter(keep==1)
 
     input_2<- x %>%
       ungroup() %>%
@@ -40,11 +39,10 @@ subsamp_temporal_pic<- function(x,cyl_time=3){
       mutate(sec_div_cyl = floor(group_id/cyl_time)) %>%
       ungroup()%>%
       arrange(TimeStamp) %>%
-      group_by(analyte_procedure,within_group_number) %>%
+      group_by(analyte_timegrp_idgrp) %>%
       filter(sec_div_cyl>1) %>%
       slice(.,seq(0,n(),by=unique(cyl_time))) %>%
-      mutate(keep=1) %>%
-      unite(time_grp,c("time_grp","within_group_number"),sep = "_")
+      mutate(keep=1)
 
      output <- input_1 %>%
        bind_rows(.,input_2) %>%

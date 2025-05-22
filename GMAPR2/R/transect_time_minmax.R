@@ -4,9 +4,6 @@ transect_time_minmax <-function (x){
     group_by(campaign, id) %>%
     summarise(min = min(TimeStamp),
               max = max(TimeStamp)) %>%
-    mutate(time_diff=max-min) %>%
-    mutate(groups_1=floor(time_diff/60)) %>%
-    mutate(groups_5=floor(time_diff/300))
-
+    mutate(time_diff=max-min)
   return(output)
 }

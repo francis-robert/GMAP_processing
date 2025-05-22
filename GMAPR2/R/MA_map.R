@@ -1,25 +1,21 @@
-MA_map <- function(x,y, rast_path, z, analyte, extent, transect=NULL, pt_size=10,
-                   campaign = NULL, multi_rast = NULL,color_pal=switch(o),
+MA_map <- function(x, rast_path, z, analyte, extent, transect=NULL, pt_size=10,
+                    multi_rast = NULL,color_pal=switch(o),
                    rast_red=3, rast_green=4, rast_blue=5,zoom_scale=550,
                    rast_type = c("naip","landsat")){
 #once I get a better data set the below commented out code will be used to process
-#the spatial data to get it ready for plotting
+#the spatial data to get it ready for plotting'
+  data_check <- x %>%
+    filter(`GPS-Latitude`==0 & `GPS-Longitude`==0)
+
+  if (nrow(data_check)>0){
+    print("THESE DATA HAVE LAT/LONG of ZERO, unless you are actively in the atlantic ocean please remove these data before mapping")
+  }else{
+    print("data have no zero lat/longs")
+  }
+
   analyte_vec<-as.vector(analyte)
   data_analyte <- x
-    # filter(str_detect(header,"ANALYTE_")) %>%
-    # mutate(header = gsub("ANALYTE_","",header)) %>%
-    # filter(!header == "GPS-Latitude" | !header == "GPS-Longitude")
-
-  locs <- y %>%
-    # filter(str_detect(header,"ANALYTE_")) %>%
-    # mutate(header = gsub("ANALYTE_","",header)) %>%
-    filter(header == "GPS-Latitude" | header == "GPS-Longitude") %>%
-    pivot_wider(.,id_cols = c(TimeStamp,id),names_from = header)
-
-  data_comb <- data_analyte %>%
-    left_join(., locs, by=c("TimeStamp","id"))
-
-  data_sf <-data_comb %>%
+  data_sf <-data_analyte %>%
     st_as_sf(.,coords = c("GPS-Longitude","GPS-Latitude"),crs=4326) %>%
     filter(grepl("MA",id))
 
@@ -43,16 +39,8 @@ MA_map <- function(x,y, rast_path, z, analyte, extent, transect=NULL, pt_size=10
           "#b189cd","#9771b3","#7f5a9a","#674482")
 
   raster_list <- list.files(path=rast_path, pattern = c(".tif|.TIF"),full.names = T)
-  # if(!is.null(multi_rast)){
-  #   raster_raw <-lapply(raster_list,rast)
-  #   raster <- do.call(mosaic,raster_raw)
-  #   print("Mosaiced Raster has been generated! Change rast_path
-  #         to utilize the novel generated raster.")
-  #   writeRaster(raster_raw,paste0(campaign,"_interim_raster_mosaic.tif"))
-    # print("Mosaiced Raster has been generated! Change rast_path
-    #       to utilize the novel generated raster.")
-  # }else {
-  raster <- rast(raster_list)
+  raster <- terra::rast(raster_list)
+#   # raster <-project(raster_raw,"epsg:4326")
   raster_crs <- crs(raster)
   print(raster_crs)
   if(extent=="w"){
@@ -92,7 +80,7 @@ MA_map <- function(x,y, rast_path, z, analyte, extent, transect=NULL, pt_size=10
            b6=8,
            b7=9)
     }else{
-  raster_clip <- crop(raster,ext) %>%
+  raster_clip <- terra::crop(raster,ext) %>%
     as.data.frame (raster,xy=T) %>%
     rename(red = rast_red,
            green = rast_green,
