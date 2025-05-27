@@ -1,98 +1,220 @@
-ts_plot <- function(x,grp = c(), analyte = c(" "), units = "", wd_avg_time_min= NULL){
-  input <- x %>%
-    filter(str_detect(header,"ANALYTE_")) %>%
-    mutate(header = gsub("ANALYTE_","",header)) %>%
-    filter(!header == "ws" & !header == "wd")
-  input_ws_wd_lat_long <- x %>%
-    filter(str_detect(header,"ANALYTE_")) %>%
-    mutate(header = gsub("ANALYTE_","",header)) %>%
-    filter(header=="ws"|header=="wd"|header=="GPS-Latitude"|header=="GPS-Longitude") %>%
-    pivot_wider(.,id_cols = TimeStamp,names_from = header)
+ts_plot <- function(x,y,z,grp = c(), analyte = c(" "), unit = NULL,
+                    multi_analyte=TRUE, time_labels="60",
+                    time_labels_graph="60 sec",
+                    user_in_top=1,user_in_bottom=1) {
   header <- analyte
   groupings <- tibble(grp, header)
   print(groupings)
   groupings_1<-groupings %>%
     mutate(header=strsplit(header,","))%>%
     unnest(header)
-  input_2<-input %>%
-    left_join(.,groupings_1,by="header") %>%
-    left_join(.,input_ws_wd_lat_long,by="TimeStamp")
-    # filter(header==groupings_1$header)
-  input_3 <-input_2 %>%
-    filter(!is.na(grp))
-  max_plots <-max(input_3$grp)
-  if(missing(units)){
-    unit<-"\u00b5g/m\u00b3"
+  print(groupings_1)
+  if(is.null(unit)){
+    unit<-"(ppb)"
   }else{
-    unit<-units
+    unit<-paste0("(",unit,")",sep="")
   }
-  output_ts_plot<-c()
-  for(i in unique(input_3$grp)){
-    plot_in<-input_3 %>%
-      filter(grp==i)
-    for (j in unique(input_3$id)){
-      plot_in_tran <- plot_in %>%
-        filter(id==j)
-    plot_ts <- ggplot(data=plot_in_tran,aes(x=TimeStamp,y=value,color=header))+
+
+  print(unit)
+
+  y_sub<-y %>%
+    ungroup()%>%
+    select(id,min,max)
+
+  z_sub <- z %>%
+    unite(analyte_procedure,c("analyte", "mdl_procedure"))
+
+  input <- x %>%
+    left_join(.,groupings_1,by="header",relationship = "many-to-many") %>%
+    drop_na(grp) %>%
+    mutate(direction_section = case_when(wd>=0 & wd <=22.5 ~ 360 ,
+                                         wd>22.5 & wd <=67.5 ~ 45,
+                                         wd>67.5 & wd <=112.5 ~ 90,
+                                         wd>112.5 & wd <=157.5 ~ 135,
+                                         wd>157.5 & wd <=202.5 ~ 180,
+                                         wd>202.5 & wd <=247.5 ~ 225,
+                                         wd>247.5 & wd <=292.5 ~ 270,
+                                         wd>292.5 & wd <=337.5 ~ 315,
+                                         wd>337.5 & wd <=360 ~ 360,
+                                         .default = NA)) %>%
+    mutate(direction_char = case_when(direction_section == 360 ~ "N",
+                                      direction_section == 45 ~ "NE",
+                                      direction_section == 90 ~ "E",
+                                      direction_section == 135 ~ "SE",
+                                      direction_section == 180 ~ "S",
+                                      direction_section == 225 ~ "SW",
+                                      direction_section == 270 ~ "W",
+                                      direction_section == 315 ~ "NW",
+                                      .default = "NA")) %>%
+    left_join(.,y_sub,by="id") %>%
+    filter(header %in% groupings_1$header) %>%
+    unite("id_grp",c(id,grp),sep="-",remove = F) %>%
+    mutate(min=floor_date(min,seconds(time_labels))) %>%
+    mutate(max=ceiling_date(max,seconds(time_labels))) %>%
+    mutate(TimeStamp_round=round_date(TimeStamp,seconds(time_labels))) %>%
+    group_by(id_grp,TimeStamp_round,direction_section) %>%
+    mutate(direc_count = n()) %>%
+    left_join(., z_sub, by="analyte_procedure")
+
+  if (multi_analyte==TRUE){
+    # input_multi <- input %>%
+    #   unite("id_grp",c(id,grp),sep="-",remove = F) %>%
+    #   group_by(id_grp)
+
+    # input_multi_wd_list_1<- input_multi %>%
+    #   ungroup() %>%
+    #   select(ws,wd,min,max,id,TimeStamp,direction_section) %>%
+    #   mutate(min=floor_date(min,unit="minute")) %>%
+    #   mutate(max=ceiling_date(max,unit="minute")) %>%
+    #   mutate(time_diff = max-min) %>%
+    #   mutate(TimeStamp_round=floor_date(TimeStamp,unit="minutes")) %>%
+    #   group_by(id) %>%
+    #   ungroup()
+
+#     input_multi_wd_list_2 <-
+#       input_multi %>%
+#       select(ws,wd,min,max,id_grp,id,TimeStamp,direction_section) %>%
+#       mutate(min=floor_date(min,unit="minute")) %>%
+#       mutate(max=ceiling_date(max,unit="minute")) %>%
+#       mutate(time_diff = max-min) %>%
+#       mutate(TimeStamp_round=floor_date(TimeStamp,unit="minutes")) %>%
+#       group_by(id) %>%
+#       unite(timestampround_ws_wd,c("TimeStamp_round","ws","wd"),sep="_",remove = F) %>%
+#       distinct(timestampround_ws_wd,.keep_all = T) %>%
+#       expand(id_grp,timestampround_ws_wd) %>%
+#       select(id_grp,timestampround_ws_wd) %>%
+#       separate(timestampround_ws_wd,c("TimeStamp_round","ws","wd"),sep ="_") %>%
+#       mutate(TimeStamp_round=as.POSIXct(TimeStamp_round,tz="America/Chicago")) %>%
+#       select(id_grp,TimeStamp_round) %>%
+#       distinct() %>%
+#       ungroup()
+#
+#     input_multi_wd_list <-input_multi_wd_list_1%>%
+#       left_join(.,input_multi_wd_list_2,by=c("id","TimeStamp_round"),
+#                 relationship = "many-to-many") %>%
+#       group_by(id_grp)
+#
+    input_multi_wd_list_out <- input %>%
+      ungroup() %>%
+      group_by(id_grp,TimeStamp_round) %>%
+      slice_max(direc_count,n=1, with_ties = F) %>%
+      ungroup() %>%
+      group_by(id_grp) %>%
+      {setNames(group_split(.), group_keys(.)[[1]])}
+#
+plot_out_wd<-input_multi_wd_list_out %>%
+  lapply(.,function(x)
+    ggplot(x,aes(x=TimeStamp_round,y=ws,radius=0.0001,angle=-direction_section+90))+
+      geom_text(label="→")+
+      ylab("WS (m/s)")+
+      theme(axis.title.x = element_blank(),axis.ticks.x = element_blank(),
+            axis.text.x = element_blank(),legend.position = "none")+
+      expand_limits(y=c(max(x$ws)+user_in_top,min(x$ws)-user_in_bottom))+
+      scale_x_datetime(date_breaks= time_labels_graph,date_labels = ("%H:%M:%S")))
+#
+input_multi_analyte_list <- input %>%
+  mutate(Time= as.POSIXct(Time, format = "%H:%M:%S")) %>%
+  ungroup() %>%
+  group_by(id_grp) %>%
+  # left_join(.,input_multi_wd_list,by="id_grp") %>%
+  {setNames(group_split(.), group_keys(.)[[1]])}
+#
+#
+plot_out_analyte<-input_multi_analyte_list %>%
+  lapply(.,function(x)
+    ggplot(x, aes(x=Time,y=value,color=header))+
+      geom_point()+
       geom_line()+
-      xlab("Time")+
-      ylab(paste0("Analyte Value (",unit,")",sep=""))+
-      labs(color="Analyte")+
-      # scale_y_continuous(limits=c(0,NA))+
-      scale_x_datetime(date_labels ="%d-%m-%Y %H:%M:%S")+
-      scale_color_manual(values=c("blue3","darkorange","chartreuse3","firebrick2","blueviolet","orange4","violetred","honeydew4","gold2","turquoise2"),
-                         drop=FALSE)+
-      geom_hline(aes(yintercept=unique(mdl),linetype="MDL"))+
-      geom_hline(aes(yintercept=unique(SQL),linetype="SQL"))+
-      scale_linetype_manual("Critical Values",values=c("MDL"="dashed","SQL"="dotted"))+
-      theme(axis.text.x = element_text(angle = 90),axis.ticks.x = element_blank())
+      scale_color_manual(values=c("blue3","darkorange","chartreuse3",
+                                  "firebrick2","blueviolet","orange4",
+                                  "violetred","honeydew4","gold2",
+                                  "turquoise2"),drop=FALSE,
+                         name=gsub("-.*","",unique(x$id_grp)))+
+      scale_x_datetime(date_breaks= time_labels_graph,date_labels = ("%H:%M:%S"))+
+      ylab(paste0("Analyte Concentration ",unit))+
+      xlab("Time"))
+#
+plot_out<-Map(
+  function(x,y){ggarrange(x,y, nrow = 2,ncol = 1, heights = c(1,3), common.legend = F,align = "hv")}
+  ,plot_out_wd,plot_out_analyte)
+ }
+else{
+  input_multi_wd_list_out <- input %>%
+    ungroup() %>%
+    group_by(id_grp,TimeStamp_round) %>%
+    slice_max(direc_count,n=1, with_ties = F) %>%
+    ungroup() %>%
+    group_by(id_grp) %>%
+    {setNames(group_split(.), group_keys(.)[[1]])}
+  #
+  plot_out_wd<-input_multi_wd_list_out %>%
+    lapply(.,function(x)
+      ggplot(x,aes(x=TimeStamp_round,y=ws,radius=0.0001,angle=-direction_section+90))+
+        geom_text(label="→")+
+        ylab("WS (m/s)")+
+        theme(axis.title.x = element_blank(),axis.ticks.x = element_blank(),
+              axis.text.x = element_blank(),legend.position = "none")+
+        expand_limits(y=c(max(x$ws)+user_in_top,min(x$ws)-user_in_bottom))+
+        scale_x_datetime(date_breaks= time_labels_graph,date_labels = ("%H:%M:%S")))
 
-    time_test<-input_ws_wd_lat_long %>%
-      group_by(id) %>%
-      mutate(time_interval=floor_date(TimeStamp,unit="hour")+minutes(floor(minute(TimeStamp)/5)*5))
-
-    mean_wd<- time_test %>%
-      group_by(time_interval) %>%
-      mutate(ones=1) %>%
-      mutate(ns=(1/sum(ones)) * sum(sin(wd))) %>%
-      mutate(ew=(1/sum(ones)) * sum(cos(wd))) %>%
-      mutate(avg_wd=90-atan(ns/ew)) %>%
-      distinct(id,.keep_all = T) %>%
-      mutate(wd_rad=((avg_wd*-1)+90+180))
-    wd_plot_prep <- input_3 %>%
-      filter(TimeStamp %in% plot_in_tran$TimeStamp) %>%
-      mutate(wd_rad=((wd*-1)+90+180))%>%
-      group_by(TimeStamp)%>%
-      distinct(TimeStamp,.keep_all = T)
-
-      # ungroup()%>%
-      # mutate(direction_section = case_when(wd_rad>=0 & wd_rad <=22.5 ~ "N",
-      #                                      wd_rad>22.5 & wd_rad <=67.5 ~ "NE",
-      #                                      wd_rad>67.5 & wd_rad <=112.5 ~ "E",
-      #                                      wd_rad>112.5 & wd_rad <=157.5 ~ "SE",
-      #                                      wd_rad>157.5 & wd_rad <=202.5 ~ "S",
-      #                                      wd_rad>202.5 & wd_rad <=247.5 ~ "SW",
-      #                                      wd_rad>247.5 & wd_rad <=292.5 ~ "W",
-      #                                      wd_rad>292.5 & wd_rad <=337.5 ~ "NW",
-      #                                      wd_rad>337.5 & wd_rad <=360 ~ "N",
-      #                                      .default = "NA"))%>%
-      # # mutate(ws=as.numeric(smooth(ws,kind="3RS3R"))) %>%
-      # mutate(date_fact=seq_along(nrow(.)))
-
-    # plot_wd <- ggplot(data=wd_plot_prep,aes(x=TimeStamp,y=ws,group=id,color=direction_section))+
-    #   geom_path(size=1)+
-    #   scale_y_continuous(labels=label_number(accuracy = 0.1))+
-    #   scale_color_manual(values=c("#fbbaa7","#fc906d","#ff580a","#cf4900","#a72f10","#782312","#3d231d","#1c1615")) +
-    #   # geom_text(aes(angle=wd_rad),label="→",size=4)+
-    #   ylab("Windspeed (m/s)")+
-    #   theme_bw()+
-    #   theme(axis.title.x = element_blank(),axis.ticks.x = element_blank(),axis.text.x = element_blank(),legend.position = "none")
-    #
-    # plot_out <-ggarrange(plot_wd,plot_ts,nrow = 2,ncol = 1,heights = c(0.4,1.25),common.legend = F)
-    # output_ts_plot[[j]] <- plot_out
-    }
-  }
-  #output_ts_plot[[max_plots+1]]<-input_3
-  return(wd_plot_prep)
+  input_multi_analyte_list <- input %>%
+    mutate(Time= as.POSIXct(Time, format = "%H:%M:%S")) %>%
+    ungroup() %>%
+    group_by(id_grp) %>%
+    # left_join(.,input_multi_wd_list,by="id_grp") %>%
+    {setNames(group_split(.), group_keys(.)[[1]])}
+#     input_multi <- input %>%
+#       unite("id_grp",c(id,grp),sep="-") %>%
+#       left_join(.,mean_wd,by="TimeStamp") %>%
+#       group_by(id_grp)
+#
+#     input_multi_wd_list<- input_multi %>%
+#     drop_na(direction_section) %>%
+#     mutate(Time= as.POSIXct(Time, format = "%H:%M:%S")) %>%
+#       mutate(mins = minute(Time)) %>%
+#       group_by(id_grp,mins) %>%
+#       slice_min(mins,n=1,with_ties = F) %>%
+#       ungroup() %>%
+#       group_by(id_grp) %>%
+#       {setNames(group_split(.), group_keys(.)[[1]])}
+#
+#   plot_out_wd<-input_multi_wd_list %>%
+#     lapply(.,function(x)
+#       ggplot(x,aes(x=Time,y=ws,radius=0.0001,angle=-direction_section+90))+
+#         geom_text(label="→")+
+#         ylab("WS (m/s)")+
+#         theme(axis.title.x = element_blank(),axis.ticks.x = element_blank(),
+#               axis.text.x = element_blank(),legend.position = "left")+
+#         expand_limits(y=c(max(x$ws)+user_in_top,min(x$ws)-user_in_bottom)))
+#
+#
+#   input_multi_analyte_list <- input_multi %>%
+#     filter(header==analyte & syft.procedure==proc) %>%
+#     mutate(Time= as.POSIXct(Time, format = "%H:%M:%S"))
+#     # left_join(.,mdl,by=c("header"="analyte","syft.procedure"))
+#     # {setNames(group_split(.), group_keys(.)[[1]])}
+#
+#
+#
+  plot_out_analyte<-input_multi_analyte_list %>%
+    lapply(.,function(x)
+      ggplot(x, aes(x=Time,y=value,color=header))+
+        geom_point()+
+        geom_line()+
+        scale_color_manual(values=c("blue3","darkorange","chartreuse3",
+                                    "firebrick2","blueviolet","orange4",
+                                    "violetred","honeydew4","gold2",
+                                    "turquoise2"),drop=FALSE,
+                           name=gsub("-.*","",unique(x$id_grp)))+
+        geom_hline(aes(yintercept=unique(mdl),linetype="MDL"))+
+        geom_hline(aes(yintercept=unique(sql),linetype="SQL"))+
+        scale_linetype_manual("Critical Values",values=c("MDL"="aa","SQL"="solid"))+
+        scale_x_datetime(date_breaks= time_labels_graph,date_labels = ("%H:%M:%S"))+
+        ylab(paste0("Analyte Concentration ",unit))+
+        xlab("Time"))
+   }
+plot_out<-Map(
+  function(x,y){ggarrange(x,y, nrow = 2,ncol = 1, heights = c(1,3), common.legend = T,legend = "bottom",align = "hv")}
+  ,plot_out_wd,plot_out_analyte)
+  return(plot_out)
 }
-

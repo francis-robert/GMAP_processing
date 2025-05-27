@@ -1,6 +1,6 @@
 time_flagging <- function(x, timestart = " ", timestop = " ", timeqt = " ",
                           analyte = " ", procedure = " ") {
-  analyte_vec <- paste0("ANALYTE_",unique(analyte))
+  analyte_vec <- unique(analyte)
   print(analyte_vec)
   timestart <- as.POSIXct(timestart,tryFormats = c("%m/%d/%Y %H:%M:%S"))
   print(timestart)
