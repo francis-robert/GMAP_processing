@@ -57,43 +57,6 @@ ts_plot <- function(x,y,z,grp = c(), analyte = c(" "), unit = NULL,
     left_join(., z_sub, by="analyte_procedure")
 
   if (multi_analyte==TRUE){
-    # input_multi <- input %>%
-    #   unite("id_grp",c(id,grp),sep="-",remove = F) %>%
-    #   group_by(id_grp)
-
-    # input_multi_wd_list_1<- input_multi %>%
-    #   ungroup() %>%
-    #   select(ws,wd,min,max,id,TimeStamp,direction_section) %>%
-    #   mutate(min=floor_date(min,unit="minute")) %>%
-    #   mutate(max=ceiling_date(max,unit="minute")) %>%
-    #   mutate(time_diff = max-min) %>%
-    #   mutate(TimeStamp_round=floor_date(TimeStamp,unit="minutes")) %>%
-    #   group_by(id) %>%
-    #   ungroup()
-
-#     input_multi_wd_list_2 <-
-#       input_multi %>%
-#       select(ws,wd,min,max,id_grp,id,TimeStamp,direction_section) %>%
-#       mutate(min=floor_date(min,unit="minute")) %>%
-#       mutate(max=ceiling_date(max,unit="minute")) %>%
-#       mutate(time_diff = max-min) %>%
-#       mutate(TimeStamp_round=floor_date(TimeStamp,unit="minutes")) %>%
-#       group_by(id) %>%
-#       unite(timestampround_ws_wd,c("TimeStamp_round","ws","wd"),sep="_",remove = F) %>%
-#       distinct(timestampround_ws_wd,.keep_all = T) %>%
-#       expand(id_grp,timestampround_ws_wd) %>%
-#       select(id_grp,timestampround_ws_wd) %>%
-#       separate(timestampround_ws_wd,c("TimeStamp_round","ws","wd"),sep ="_") %>%
-#       mutate(TimeStamp_round=as.POSIXct(TimeStamp_round,tz="America/Chicago")) %>%
-#       select(id_grp,TimeStamp_round) %>%
-#       distinct() %>%
-#       ungroup()
-#
-#     input_multi_wd_list <-input_multi_wd_list_1%>%
-#       left_join(.,input_multi_wd_list_2,by=c("id","TimeStamp_round"),
-#                 relationship = "many-to-many") %>%
-#       group_by(id_grp)
-#
     input_multi_wd_list_out <- input %>%
       ungroup() %>%
       group_by(id_grp,TimeStamp_round) %>%
