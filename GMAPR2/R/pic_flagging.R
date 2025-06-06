@@ -1,19 +1,22 @@
-pic_flagging <- function(x, y, h2shs=NULL,ch4hs=NULL){
-  mdl <- y
-
+pic_flagging <- function(x, y, z){
+  print("Picarro mdl flagging cannot occur after Syft mdl flagging.")
+  mdl_hs_df <- y %>%
+    left_join(.,z,by=c("analyte","mdl_procedure"="hs_procedure"))
+  met_data <- x %>%
+    filter(analyte_procedure == "NA")
   data <- x %>%
-    left_join(.,mdl, by=c("header" = "analyte")) %>%
+    filter(!analyte_procedure == "NA") %>%
+    left_join(.,mdl_hs_df, by=c("header" = "analyte"),relationship = "many-to-many") %>%
     unite(mdl_analyte_procedure_comb, c("header","mdl_procedure"),sep="_", remove = F) %>%
-    mutate(mdl_flag = "NA") %>%
-    mutate(mdl_flag = case_when(instrument == "Picarro-G2204" & header == "CH4" & value < (-abs(mdl)) ~ "ND",
-                                instrument == "Picarro-G2204" & header == "CH4" & value >= (-abs(mdl)) & value <= (abs(mdl)) ~ "MD",
-                                instrument == "Picarro-G2204" & header == "CH4" & value > (abs(mdl)) & value <= (abs(3 * mdl)) ~ "PQ",
-                                instrument == "Picarro-G2204" & header == "CH4" & value > ch4hs  ~ "EH",
-                                instrument == "Picarro-G2204" & header == "H2S" & value < (-abs(mdl)) ~ "ND",
-                                instrument == "Picarro-G2204" & header == "H2S" & value >= (-abs(mdl)) & value <= (abs(mdl)) ~ "MD",
-                                instrument == "Picarro-G2204" & header == "H2S" & value > (abs(mdl)) & value <= (abs(3 * mdl)) ~ "PQ",
-                                instrument == "Picarro-G2204" & header == "H2S" & value > h2shs  ~ "EH",
-                                .default = mdl_flag)) %>%
-    mutate(value = replace(value, str_detect(mdl_flag, "AV|BJ|AM|AN|AT|AZ|BA|BN|QX"),NA)) %>%
-    ungroup()
+    filter(mdl_analyte_procedure_comb == analyte_procedure) %>%
+    mutate(mdl_flag="NA")
+  flagged_mdl_pic <- data %>%
+    mutate(mdl_flag = case_when(instrument=="Picarro-G2204" & analyte_procedure==mdl_analyte_procedure_comb & value < mdl & value > (mdl*(-1)) ~ "MD",
+                                instrument=="Picarro-G2204" & analyte_procedure==mdl_analyte_procedure_comb & value < sql & value > mdl ~ "SQ",
+                                instrument=="Picarro-G2204" & analyte_procedure==mdl_analyte_procedure_comb & value < (mdl*(-1))~ "ND",
+                                instrument=="Picarro-G2204" & analyte_procedure==mdl_analyte_procedure_comb & value > hs ~ "EH",
+                                .default = mdl_flag))
+  output <- flagged_mdl_pic %>%
+    bind_rows(.,met_data)
+
 }
